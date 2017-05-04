@@ -1,7 +1,7 @@
 package config
 
 import (
-	log "github.com/cihub/seelog"
+	"log"
 
 	"github.com/olebedev/config"
 )
@@ -40,7 +40,7 @@ var (
 
 func ensureInitialize() {
 	if confInstance == nil {
-		log.Warn("config not initialize")
+		log.Println("config not initialize")
 	}
 }
 
@@ -51,7 +51,7 @@ func Initialize(configFile string) {
 	}
 	conf, err := config.ParseYamlFile(configFile)
 	if err != nil {
-		log.Warn(err)
+		log.Println(err)
 		return
 	}
 	confInstance = conf.Env()
