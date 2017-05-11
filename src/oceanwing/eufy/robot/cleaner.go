@@ -282,22 +282,22 @@ func (robot *littleRobot) handleIncomingMsg() {
 				// heartBeatInfo[18]:校验和
 				// heartBeatInfo[19]:MCU发送数据结束信号0XFA
 				if len(heartBeatInfo) == 20 {
-					log.Infof("Work mode: %d, device key: %s", heartBeatInfo[1], robot.devKEY)
-					log.Infof("Battery capacity: %d, device key: %s", heartBeatInfo[10], robot.devKEY)
-					log.Infof("Direction Forward: %d, device key: %s", heartBeatInfo[2], robot.devKEY)
-					log.Infof("Direction Backward: %d, device key: %s", heartBeatInfo[3], robot.devKEY)
-					log.Infof("Direction Left: %d, device key: %s", heartBeatInfo[4], robot.devKEY)
-					log.Infof("Direction Right: %d, device key: %s", heartBeatInfo[5], robot.devKEY)
-					log.Infof("Clean Speed: %d, device key: %s", heartBeatInfo[8], robot.devKEY)
-					log.Infof("Room Mode: %d, device key: %s", heartBeatInfo[9], robot.devKEY)
-					log.Infof("IsCharging: %d, device key: %s", heartBeatInfo[11], robot.devKEY)
-					log.Infof("Stop cleaing: %d, device key: %s", heartBeatInfo[13], robot.devKEY)
+					log.Infof("模式: %d,  device key: %s", heartBeatInfo[1], robot.devKEY)
+					log.Infof("电量: %d,  device key: %s", heartBeatInfo[10], robot.devKEY)
+					log.Infof("向前: %d,  device key: %s", heartBeatInfo[2], robot.devKEY)
+					log.Infof("向后: %d,  device key: %s", heartBeatInfo[3], robot.devKEY)
+					log.Infof("向左: %d,  device key: %s", heartBeatInfo[4], robot.devKEY)
+					log.Infof("向右: %d,  device key: %s", heartBeatInfo[5], robot.devKEY)
+					log.Infof("速度: %d,  device key: %s", heartBeatInfo[8], robot.devKEY)
+					log.Infof("房间: %d,  device key: %s", heartBeatInfo[9], robot.devKEY)
+					log.Infof("充电: %d,  device key: %s", heartBeatInfo[11], robot.devKEY)
+					log.Infof("停止: %d,  device key: %s", heartBeatInfo[13], robot.devKEY)
 					//如果ErrorCode不为0，则机器内部可能出错
 					if heartBeatInfo[12] != 0 {
-						log.Infof("Alarm! ErrorCode is: %d, device key: %s", heartBeatInfo[12], robot.devKEY)
+						log.Errorf("警告! ErrorCode: %d, device key: %s", heartBeatInfo[12], robot.devKEY)
 					}
 					//水箱状态
-					log.Infof("水箱状态: %d", heartBeatInfo[6])
+					log.Infof("水箱状态:  %d", heartBeatInfo[6])
 					// 如果电量在20%以下且workmode不等于3,则让机器人返回充电
 					if heartBeatInfo[10] <= 20 {
 						robot.charging = true

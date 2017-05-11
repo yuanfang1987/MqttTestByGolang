@@ -21,6 +21,11 @@ const (
 	MqttauthUserName         = "mqtt.auth_user_name"
 	MqttauthPassword         = "mqtt.auth_password"
 
+	AnkerBoxServerSendSpeed = "ankerbox.server_send_speed"
+	AnkerBoxDeviceID        = "ankerbox.device_id"
+	AnkerBoxCommandFile     = "ankerbox.command_file"
+	AnkerBoxClientNum       = "ankerbox.client_num"
+
 	RobotcleanerHeartBeatInterval = "robotcleaner.heart_beat_interval"
 	RobotcleanerTestDataFile      = "robotcleaner.test_data_file"
 	RobotcleanerDeviceKey         = "robotcleaner.deviceKey"

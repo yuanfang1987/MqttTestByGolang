@@ -25,7 +25,6 @@ func main() {
 	password := config.GetString(config.MqttauthPassword)
 	broker := config.GetString(config.MqttBroker)
 	needca := config.GetBool(config.MqttNeedCA)
-	capath := config.GetString(config.MqttCAFile)
 	devKeys := config.GetString(config.RobotcleanerDeviceKey)
 	interval := config.GetInt(config.RobotcleanerHeartBeatInterval)
 	appUserRunflag := config.GetBool(config.AppuserRunFlag)
@@ -39,10 +38,11 @@ func main() {
 
 	// set up CA
 	if needca {
+		capath := config.GetString(config.MqttCAFile)
 		commontool.BuildTlSConfig(capath)
 	}
 
-	// run test..
+	// run test.
 	for i := 0; i < 1; i++ {
 		go func() {
 			// create a new cleaner

@@ -22,7 +22,7 @@ var (
 )
 
 // GenerateClientID when connect to a mqtt broker, need a clientid(for ankerbox.)
-func generateClientID() string {
+func GenerateClientID() string {
 	return strconv.FormatInt(time.Now().UnixNano()/1e6, 10)
 }
 
