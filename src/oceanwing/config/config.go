@@ -1,7 +1,7 @@
 package config
 
 import (
-	"log"
+	"fmt"
 
 	"github.com/olebedev/config"
 )
@@ -45,7 +45,7 @@ var (
 
 func ensureInitialize() {
 	if confInstance == nil {
-		log.Println("config not initialize")
+		fmt.Println("config not initialize")
 	}
 }
 
@@ -56,7 +56,7 @@ func Initialize(configFile string) {
 	}
 	conf, err := config.ParseYamlFile(configFile)
 	if err != nil {
-		log.Println(err)
+		fmt.Println(err)
 		return
 	}
 	confInstance = conf.Env()
