@@ -1,0 +1,11 @@
+# ignore all bin files
+bin/
+# ignore all pkg files
+pkg/
+# ignore src file from github.com
+github.com/
+# ignore src file from golang.org
+src/golang.org/
+src/gopkg.in/
+src/sourcegraph.com/
+.vscode/
