@@ -35,7 +35,7 @@ type Cleaner struct {
 	Command6 []byte
 }
 
-//RunRobotCleanerMqttService connect to mqtt and subscribeto topic. haha, i am a bird...
+//RunRobotCleanerMqttService connect to mqtt and subscribeto topic. so cool.
 func (r *Cleaner) RunRobotCleanerMqttService(clientid, username, pwd, broker, devKey string, needCA bool) {
 	r.Clientid = clientid
 	r.Username = username
