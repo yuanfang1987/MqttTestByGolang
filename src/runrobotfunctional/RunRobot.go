@@ -65,13 +65,14 @@ func main() {
 				eufyServer.AddRunningRobot(userDevKey, userDeviceID)
 			}
 			// run mqtt service
-			eufyServer.RunMqtt(clientIDUserName, clientIDUserName, password, broker, needca)
+			eufyServer.RunMqttDebug(clientIDUserName, clientIDUserName, password, broker, needca)
 			//timer.
 			heartBeatInterval := time.NewTicker(time.Second * time.Duration(interval)).C
 			for {
 				select {
 				case <-heartBeatInterval:
-					eufyServer.PublishMsgToAllRobot()
+					// eufyServer.PublishMsgToAllRobot()
+					log.Info("do nothing...")
 				}
 			}
 		}()

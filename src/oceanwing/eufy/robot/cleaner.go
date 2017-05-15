@@ -195,6 +195,62 @@ func (r *EufyServer) RunMqtt(clientid, username, pwd, broker string, ca bool) {
 	r.MqttClient.ConnectToBroker()
 }
 
+// RunMqttDebug hh.
+func (r *EufyServer) RunMqttDebug(clientid, username, pwd, broker string, ca bool) {
+	r.Clientid = clientid
+	r.Username = username
+	r.Pwd = pwd
+	r.Broker = broker
+	r.SubTopic = "DEVICE/T2103/2AD94F5DA1D5BA0F/SUB_MESSAGE" // PUH_MESSAGE
+	r.NeedCA = ca
+
+	r.SubHandler = func(c MQTT.Client, msg MQTT.Message) {
+		go recordLogCommand(msg.Topic(), msg.Payload())
+	}
+	// connect.
+	r.MqttClient.ConnectToBroker()
+}
+
+func recordLogHeartBeat(t string, payload []byte) {
+	if len(payload) == 20 {
+		log.Infof("new heart beat msg coming from : %s", t)
+		log.Infof("index 0, value: %d", payload[0])
+		log.Infof("index 1, value: %d", payload[1])
+		log.Infof("index 2, value: %d", payload[2])
+		log.Infof("index 3, value: %d", payload[3])
+		log.Infof("index 4, value: %d", payload[4])
+		log.Infof("index 5, value: %d", payload[5])
+		log.Infof("index 6, value: %d", payload[6])
+		log.Infof("index 7, value: %d", payload[7])
+		log.Infof("index 8, value: %d", payload[8])
+		log.Infof("index 9, value: %d", payload[9])
+		log.Infof("index 10, value: %d", payload[10])
+		log.Infof("index 11, value: %d", payload[11])
+		log.Infof("index 12, value: %d", payload[12])
+		log.Infof("index 13, value: %d", payload[13])
+		log.Infof("index 14, value: %d", payload[14])
+		log.Infof("index 15, value: %d", payload[15])
+		log.Infof("index 16, value: %d", payload[16])
+		log.Infof("index 17, value: %d", payload[17])
+		log.Infof("index 18, value: %d", payload[18])
+		log.Infof("index 19, value: %d", payload[19])
+	}
+}
+
+func recordLogCommand(t string, payload []byte) {
+	if len(payload) == 8 {
+		log.Infof("new command msg from topic: %s", t)
+		log.Infof("index 0, value: %d", payload[0])
+		log.Infof("index 1, value: %d", payload[1])
+		log.Infof("index 2, value: %d", payload[2])
+		log.Infof("index 3, value: %d", payload[3])
+		log.Infof("index 4, value: %d", payload[4])
+		log.Infof("index 5, value: %d", payload[5])
+		log.Infof("index 6, value: %d", payload[6])
+		log.Infof("index 7, value: %d", payload[7])
+	}
+}
+
 // distributeMsg 根据主题把消息分发给对应的littleRobot去处理
 func (r *EufyServer) distributeMsg(t string, payload []byte) {
 	for _, robot := range r.littleRobots {
