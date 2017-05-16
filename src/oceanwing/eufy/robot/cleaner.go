@@ -2,7 +2,9 @@ package robot
 
 import (
 	"oceanwing/mqttclient"
+	"runtime"
 
+	log "github.com/cihub/seelog"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 )
 
@@ -40,12 +42,14 @@ func (r *Cleaner) RunRobotCleanerMqttService(clientid, username, pwd, broker, de
 	r.Pwd = pwd
 	r.Broker = broker
 	r.PubTopic = "DEVICE/T2103/" + devKey + "/PUH_MESSAGE"
-	r.SubTopic = "DEVICE/T2103/" + devKey + "/SUB_MESSAGE"
+	r.SubTopic = "DEVICE/T2103/" + devKey + "/PUH_MESSAGE" // SUB_MESSAGE
 	r.NeedCA = needCA
 	// 2017.05.16 added
+	r.CmdToServer = make(chan []byte)
 	r.robotACK = []byte{0xA5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x5C, 0x00, 0x00, 0x01, 0x10, 0x09, 0xFF, 0xFF, 0x74, 0xFA}
 	// msgHandler
 	r.SubHandler = func(c MQTT.Client, msg MQTT.Message) {
+		log.Debugf("new msg coming base on topic: %s", msg.Topic())
 		go r.handleInComingCMD(msg.Payload())
 	}
 	// connect to broker and subscribe to a topic.
@@ -79,6 +83,7 @@ func (r *Cleaner) getCommand() []byte {
 func (r *Cleaner) SendRobotCleanerHeartBeat() {
 	//r.MqttClient.PublishMessage(r.getCommand())
 	r.CmdToServer <- r.robotACK
+	log.Debug("new payload send to channel: CmdToServer")
 	// update index.
 	// r.Cindex++
 	// if r.Cindex > 5 {
@@ -91,13 +96,40 @@ func (r *Cleaner) outgoingMsg() {
 		for {
 			select {
 			case payload := <-r.CmdToServer:
+				log.Debug("new payload is ready to publish.")
 				r.MqttClient.PublishMessage(payload)
 			}
 		}
 	}()
+	log.Debug("run function: outgoingMsg")
 }
 
 func (r *Cleaner) handleInComingCMD(pl []byte) {
+	// debug
+	log.Debugf("current goroutine number: %d", runtime.NumGoroutine())
+	if len(pl) == 20 {
+		log.Infof("index[0], value: %X", pl[0])
+		log.Infof("index[1], value: %X", pl[1])
+		log.Infof("index[2], value: %X", pl[2])
+		log.Infof("index[3], value: %X", pl[3])
+		log.Infof("index[4], value: %X", pl[4])
+		log.Infof("index[5], value: %X", pl[5])
+		log.Infof("index[6], value: %X", pl[6])
+		log.Infof("index[7], value: %X", pl[7])
+		log.Infof("index[8], value: %X", pl[8])
+		log.Infof("index[9], value: %X", pl[9])
+		log.Infof("index[10], value: %X", pl[10])
+		log.Infof("index[11], value: %X", pl[11])
+		log.Infof("index[12], value: %X", pl[12])
+		log.Infof("index[13], value: %X", pl[13])
+		log.Infof("index[14], value: %X", pl[14])
+		log.Infof("index[15], value: %X", pl[15])
+		log.Infof("index[16], value: %X", pl[16])
+		log.Infof("index[17], value: %X", pl[17])
+		log.Infof("index[18], value: %X", pl[18])
+		log.Infof("index[19], value: %X", pl[19])
+		return
+	}
 	if len(pl) != 8 {
 		return
 	}

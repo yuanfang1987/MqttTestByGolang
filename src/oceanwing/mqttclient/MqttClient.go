@@ -112,7 +112,7 @@ func (n *MqttClient) PublishMessage(payload interface{}) {
 	} else {
 		log.Warnf("publish message timeout, clientID: %s", n.Clientid)
 	}
-
+	log.Debugf("Publish message successfully to topic: %s", n.PubTopic)
 }
 
 // PublishMessageWithNoTimout do not wait the token return timeout.
