@@ -170,7 +170,7 @@ func (r *Cleaner) handleInComingCMD(pl []byte) {
 		}
 	} else if pl[4] == 236 {
 		return
-		// do nothing, just let the robot make some noise. are you kidding me?
+		// do nothing, just let the robot make some noise. a, I am so tired.
 	}
 	r.CmdToServer <- r.robotACK
 }
