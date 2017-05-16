@@ -35,7 +35,7 @@ type Cleaner struct {
 	Command6    []byte
 }
 
-//RunRobotCleanerMqttService connect to mqtt and subscribeto topic. so cool.
+//RunRobotCleanerMqttService connect to mqtt and subscribeto topic.
 func (r *Cleaner) RunRobotCleanerMqttService(clientid, username, pwd, broker, devKey string, needCA bool) {
 	r.Clientid = clientid
 	r.Username = username
@@ -105,7 +105,6 @@ func (r *Cleaner) outgoingMsg() {
 }
 
 func (r *Cleaner) handleInComingCMD(pl []byte) {
-	// debug
 	log.Debugf("current goroutine number: %d", runtime.NumGoroutine())
 	// if len(pl) == 20 {
 	// 	log.Infof("index[0], value: %X", pl[0])
@@ -171,7 +170,7 @@ func (r *Cleaner) handleInComingCMD(pl []byte) {
 		}
 	} else if pl[4] == 236 {
 		return
-		// do nothing, just let the robot make some noise.
+		// do nothing, just let the robot make some noise. are you kidding me?
 	}
 	r.CmdToServer <- r.robotACK
 }
