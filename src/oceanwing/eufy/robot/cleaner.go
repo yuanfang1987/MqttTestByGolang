@@ -187,7 +187,7 @@ func (r *EufyServer) RunMqtt(clientid, username, pwd, broker string, ca bool) {
 	r.Broker = broker
 	r.SubTopic = "DEVICE/T2103/+/PUH_MESSAGE"
 	r.NeedCA = ca
-
+	r.caseNum = 1
 	r.SubHandler = func(c MQTT.Client, msg MQTT.Message) {
 		go r.distributeMsg(msg.Topic(), msg.Payload())
 	}
@@ -220,9 +220,9 @@ func (r *EufyServer) PublishMsgToAllRobot() {
 					r.MqttClient.PublishMessage(getCommandToDevice(r.caseNum, robot))
 					log.Infof("发送指令给机器: %s, 指令内容: %s", robot.devKEY, robot.testPurpose)
 					r.caseNum++
-					if r.caseNum > 28 {
-						// reset to 0
-						r.caseNum = 0
+					if r.caseNum > 10 {
+						// reset to 1
+						r.caseNum = 1
 					}
 				}
 			} else if robot.returnCharge {
@@ -230,7 +230,7 @@ func (r *EufyServer) PublishMsgToAllRobot() {
 					r.appUser.SetIndexForReturnHome()
 					r.appUser.SendCmdToServer(robot.devID)
 				} else {
-					r.MqttClient.PublishMessage(getCommandToDevice(3, robot))
+					r.MqttClient.PublishMessage(getCommandToDevice(4, robot))
 					log.Infof("机器 [%s] 正处于低电量, 发指令叫它回家充电", robot.devKEY)
 				}
 			} else {
@@ -334,13 +334,6 @@ func (robot *littleRobot) handleIncomingMsg() {
 func getCommandToDevice(index int, rb *littleRobot) []byte {
 	rb.isCmdSent = true
 	switch index {
-	// ----------------------- 工作模式: 0xE1 ----------------------------------- good.
-	case 0:
-		// 暂停 0x00, ok
-		rb.expResultIndex = 1
-		rb.expResultValue = 0
-		rb.testPurpose = "设置工作模式为： [0x00], 暂停"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x00, 0xE1, 0xFA}
 	case 1:
 		// 定点 0x01, ok
 		rb.expResultIndex = 1
@@ -348,162 +341,53 @@ func getCommandToDevice(index int, rb *littleRobot) []byte {
 		rb.testPurpose = "设置工作模式为： [0x01], 定点"
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x01, 0xE2, 0xFA}
 	case 2:
-		// 自动 0x02, ok
-		rb.expResultIndex = 1
-		rb.expResultValue = 2
-		rb.testPurpose = "设置工作模式为： [0x02], 自动"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x02, 0xE3, 0xFA}
-	case 3:
-		// 返回充电 0x03, ok
-		rb.expResultIndex = 1
-		rb.expResultValue = 3
-		rb.testPurpose = "设置工作模式为： [0x03], 返回充电"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x03, 0xE4, 0xFA}
-	case 4:
-		// 沿边 0x04, ok
-		rb.expResultIndex = 1
-		rb.expResultValue = 4
-		rb.testPurpose = "设置工作模式为： [0x04], 沿边"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x04, 0xE5, 0xFA}
-	case 5:
-		//精扫 0x05
-		rb.expResultIndex = 1
-		rb.expResultValue = 5
-		rb.testPurpose = "设置工作模式为： [0x05], 精扫"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x05, 0xE6, 0xFA}
-	// ------------------------ 向前: 0xE2 ----------------------------------- good.
-	case 6:
-		//向前 0x01
-		rb.expResultIndex = 2
-		rb.expResultValue = 1
-		rb.testPurpose = "执行方向操作： [0x01], 向前"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE2, 0x01, 0xE3, 0xFA}
-	case 7:
-		//停止向前 0x00
-		rb.expResultIndex = 2
-		rb.expResultValue = 0
-		rb.testPurpose = "执行方向操作： [0x00], 停止向前"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE2, 0x00, 0xE2, 0xFA}
-	// -------------------------向后: 0xE3 ----------------------------------- good.
-	case 8:
-		//向后
-		rb.expResultIndex = 3
-		rb.expResultValue = 1
-		rb.testPurpose = "执行方向操作： [0x01], 向后"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE3, 0x01, 0xE4, 0xFA}
-	case 9:
-		//停止向后
-		rb.expResultIndex = 3
-		rb.expResultValue = 0
-		rb.testPurpose = "执行方向操作： [0x00], 停止向后"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE3, 0x00, 0xE3, 0xFA}
-	// -------------------------向左: 0xE4 ----------------------------------- good.
-	case 10:
-		//向左
-		rb.expResultIndex = 4
-		rb.expResultValue = 1
-		rb.testPurpose = "执行方向操作： [0x01], 向左"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE4, 0x01, 0xE5, 0xFA}
-	case 11:
-		//停止向左
-		rb.expResultIndex = 4
-		rb.expResultValue = 0
-		rb.testPurpose = "执行方向操作： [0x00], 停止向左"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE4, 0x00, 0xE4, 0xFA}
-	// -------------------------向右: 0xE5 ----------------------------------- good.
-	case 12:
-		//向右
-		rb.expResultIndex = 5
-		rb.expResultValue = 1
-		rb.testPurpose = "执行方向操作： [0x01], 向右"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE5, 0x01, 0xE6, 0xFA}
-	case 13:
-		//停止向右
-		rb.expResultIndex = 5
-		rb.expResultValue = 0
-		rb.testPurpose = "执行方向操作： [0x00], 停止向右"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE5, 0x00, 0xE5, 0xFA}
-	// -------------------------下视距离: 0xE6 --------------------------------
-	case 14:
-		//下视距离近:
-		rb.testPurpose = "下视距离近"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE6, 0x01, 0xE7, 0xFA}
-	case 15:
-		//下视距离远:
-		rb.testPurpose = "下视距离远"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE6, 0x00, 0xE6, 0xFA}
-	// -------------------------侧视距离: 0xE7 --------------------------------
-	case 16:
-		//侧视距离近:
-		rb.testPurpose = "侧视距离近"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE7, 0x01, 0xE8, 0xFA}
-	case 17:
-		//侧视距离远:
-		rb.testPurpose = "侧视距离远"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE7, 0x00, 0xE7, 0xFA}
-	// ------------------------- Clean Speed: 0xE8 ----------------------------  good.
-	case 18:
-		//日常 0x00
-		rb.expResultIndex = 8
-		rb.expResultValue = 0
-		rb.testPurpose = "设置速度为： [0x00], 日常"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE8, 0x00, 0xE8, 0xFA}
-	case 19:
 		//强力 0x01
 		rb.expResultIndex = 8
 		rb.expResultValue = 1
 		rb.testPurpose = "设置速度为： [0x01], 强力"
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE8, 0x01, 0xE9, 0xFA}
-	case 20:
-		//地毯 0x02
-		rb.expResultIndex = 8
+	case 3:
+		// 自动 0x02, ok
+		rb.expResultIndex = 1
 		rb.expResultValue = 2
-		rb.testPurpose = "设置速度为： [0x02], 地毯"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE8, 0x02, 0xEA, 0xFA}
-	case 21:
-		//静音 0x03
-		rb.expResultIndex = 8
+		rb.testPurpose = "设置工作模式为： [0x02], 自动"
+		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x02, 0xE3, 0xFA}
+	case 4:
+		// 返回充电 0x03, ok
+		rb.expResultIndex = 1
 		rb.expResultValue = 3
-		rb.testPurpose = "设置速度为： [0x03], 静音"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE8, 0x03, 0xEB, 0xFA}
-	// ------------------------- Room Mode: 0xE9 ------------------------------ good
-	case 22:
-		//大房间 0x00
-		rb.expResultIndex = 9
+		rb.testPurpose = "设置工作模式为： [0x03], 返回充电"
+		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x03, 0xE4, 0xFA}
+	case 5:
+		// 沿边 0x04, ok
+		rb.expResultIndex = 1
+		rb.expResultValue = 4
+		rb.testPurpose = "设置工作模式为： [0x04], 沿边"
+		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x04, 0xE5, 0xFA}
+	case 6:
+		//精扫 0x05
+		rb.expResultIndex = 1
+		rb.expResultValue = 5
+		rb.testPurpose = "设置工作模式为： [0x05], 精扫"
+		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x05, 0xE6, 0xFA}
+	case 7:
+		//日常 0x00
+		rb.expResultIndex = 8
 		rb.expResultValue = 0
-		rb.testPurpose = "设置房间为： [0x00], 大房间"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE9, 0x00, 0xE9, 0xFA}
-	case 23:
-		//小房间 0x01
-		rb.expResultIndex = 9
-		rb.expResultValue = 1
-		rb.testPurpose = "设置房间为： [0x01], 小房间"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE9, 0x01, 0xEA, 0xFA}
-	case 24:
-		//中房间 0x02
-		rb.expResultIndex = 9
-		rb.expResultValue = 2
-		rb.testPurpose = "设置房间为： [0x02], 中房间"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE9, 0x02, 0xEB, 0xFA}
-	// ------------------------- Stop Cleaning: 0xEA -------------------------- good.
-	case 25:
-		//stop 0x01
-		rb.expResultIndex = 13
-		rb.expResultValue = 1
-		rb.testPurpose = "设置是否停止： [0x01], 是"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xEA, 0x01, 0xEB, 0xFA}
-	case 26:
-		// not stop 0x00
-		rb.expResultIndex = 13
+		rb.testPurpose = "设置速度为： [0x00], 日常"
+		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE8, 0x00, 0xE8, 0xFA}
+	case 8:
+		// 暂停 0x00, ok
+		rb.expResultIndex = 1
 		rb.expResultValue = 0
-		rb.testPurpose = "设置是否停止： [0x00], 否"
-		return []byte{0x00, 0x00, 0x00, 0xA5, 0xEA, 0x00, 0xEA, 0xFA}
+		rb.testPurpose = "设置工作模式为： [0x00], 暂停"
+		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x00, 0xE1, 0xFA}
 	// ------------------------- Find Me Alert: 0xEC -------------------------- good.
-	case 27:
+	case 9:
 		// turn on alert: 0x01
 		rb.testPurpose = "打开 [Find Me Alert]"
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xEC, 0x01, 0xED, 0xFA}
-	case 28:
+	case 10:
 		// turn off alert: 0x00
 		rb.testPurpose = "关闭 [Find Me Alert]"
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xEC, 0x00, 0xEC, 0xFA}
