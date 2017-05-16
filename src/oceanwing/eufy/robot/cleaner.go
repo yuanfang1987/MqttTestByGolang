@@ -80,10 +80,10 @@ func (r *Cleaner) SendRobotCleanerHeartBeat() {
 	//r.MqttClient.PublishMessage(r.getCommand())
 	r.CmdToServer <- r.robotACK
 	// update index.
-	r.Cindex++
-	if r.Cindex > 5 {
-		r.Cindex = 0
-	}
+	// r.Cindex++
+	// if r.Cindex > 5 {
+	// 	r.Cindex = 0
+	// }
 }
 
 func (r *Cleaner) outgoingMsg() {

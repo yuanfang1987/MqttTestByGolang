@@ -19,7 +19,7 @@ func main() {
 	defer log.Flush()
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	// 初始化配置文件
+	// 初始化配置文件.
 	config.Initialize("config.yaml")
 
 	// 从配置文件获取参数
