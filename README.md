@@ -11,3 +11,5 @@ github.com/bitly/go-simplejson
 github.com/golang/protobuf/proto
 
 github.com/olebedev/config
+
+github.com/pborman/uuid
