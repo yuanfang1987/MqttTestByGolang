@@ -84,7 +84,6 @@ func main() {
 			for {
 				select {
 				case <-heartBeatInterval:
-					log.Debugf("current goroutine number: %d", runtime.NumGoroutine())
 					robotCleaner.SendRobotCleanerHeartBeat()
 				}
 			}
