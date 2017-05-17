@@ -91,12 +91,13 @@ func (r *Cleaner) SendRobotCleanerHeartBeat() {
 	// }
 }
 
+// publish消息的统一出口，不管是常规心跳，还是即时响应，都是经过这里发出
 func (r *Cleaner) outgoingMsg() {
 	go func() {
 		for {
 			select {
 			case payload := <-r.CmdToServer:
-				log.Debug("new payload is ready to publish.")
+				log.Debug("receive new payload from channel: CmdToServer")
 				r.MqttClient.PublishMessage(payload)
 			}
 		}
@@ -106,69 +107,57 @@ func (r *Cleaner) outgoingMsg() {
 
 func (r *Cleaner) handleInComingCMD(pl []byte) {
 	log.Debugf("current goroutine number: %d", runtime.NumGoroutine())
-	// if len(pl) == 20 {
-	// 	log.Infof("index[0], value: %X", pl[0])
-	// 	log.Infof("index[1], value: %X", pl[1])
-	// 	log.Infof("index[2], value: %X", pl[2])
-	// 	log.Infof("index[3], value: %X", pl[3])
-	// 	log.Infof("index[4], value: %X", pl[4])
-	// 	log.Infof("index[5], value: %X", pl[5])
-	// 	log.Infof("index[6], value: %X", pl[6])
-	// 	log.Infof("index[7], value: %X", pl[7])
-	// 	log.Infof("index[8], value: %X", pl[8])
-	// 	log.Infof("index[9], value: %X", pl[9])
-	// 	log.Infof("index[10], value: %X", pl[10])
-	// 	log.Infof("index[11], value: %X", pl[11])
-	// 	log.Infof("index[12], value: %X", pl[12])
-	// 	log.Infof("index[13], value: %X", pl[13])
-	// 	log.Infof("index[14], value: %X", pl[14])
-	// 	log.Infof("index[15], value: %X", pl[15])
-	// 	log.Infof("index[16], value: %X", pl[16])
-	// 	log.Infof("index[17], value: %X", pl[17])
-	// 	log.Infof("index[18], value: %X", pl[18])
-	// 	log.Infof("index[19], value: %X", pl[19])
-	// 	return
-	// }
 	if len(pl) != 8 {
+		log.Debugf("Oops! receive invalid format message, the message length is: %d", len(pl))
 		return
 	}
+	log.Debugf("index 4: %d, index 5: %d", pl[4], pl[5])
 	if pl[4] == 225 {
 		switch pl[5] {
 		case 0:
 			// pause
+			log.Debug("receive command: Pause")
 			r.robotACK = []byte{0xA5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x5C, 0x00, 0x00, 0x01, 0x10, 0x09, 0xFF, 0xFF, 0x74, 0xFA}
 		case 1:
 			// spot
+			log.Debug("receive command: Cleaning On Spot Mode")
 			r.robotACK = []byte{0xA5, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x5D, 0x00, 0x00, 0x00, 0x10, 0x08, 0xFF, 0xFF, 0x74, 0xFA}
 		case 2:
 			// auto
+			log.Debug("receive command: Cleaning On Auto Mode")
 			r.robotACK = []byte{0xA5, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x5D, 0x00, 0x00, 0x00, 0x10, 0x09, 0xFF, 0xFF, 0x76, 0xFA}
 		case 3:
 			// back to charge
+			log.Debug("receive command: Back to charge")
 			r.robotACK = []byte{0xA5, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x5D, 0x01, 0x00, 0x01, 0x10, 0x0F, 0xFF, 0xFF, 0x7F, 0xFA}
 		case 4:
 			// edge
+			log.Debug("receive command: Cleaning On Edge Mode")
 			r.robotACK = []byte{0xA5, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x5D, 0x00, 0x00, 0x00, 0x10, 0x00, 0xFF, 0xFF, 0x6F, 0xFA}
 		case 5:
 			// small room
+			log.Debug("receive command: Cleaning On Small Room Mode")
 			r.robotACK = []byte{0xA5, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x5C, 0x00, 0x00, 0x00, 0x10, 0x09, 0xFF, 0xFF, 0x78, 0xFA}
 		}
 	} else if pl[4] == 232 {
 		switch pl[5] {
 		case 0:
 			// daily
+			log.Debug("receive command: Set Speed to Daily")
 			if r.robotACK[8] != 0 {
 				r.robotACK[8] = 0x00
 				r.robotACK[18] = r.robotACK[18] - 1
 			}
 		case 1:
 			// strong
+			log.Debug("receive command: Set Speed to Strong")
 			if r.robotACK[8] != 1 {
 				r.robotACK[8] = 0x01
 				r.robotACK[18] = r.robotACK[18] + 1
 			}
 		}
 	} else if pl[4] == 236 {
+		log.Debug("receive command: Find Me Alert")
 		return
 		// do nothing, just let the robot make some noise. a, I am so tired.
 	}
