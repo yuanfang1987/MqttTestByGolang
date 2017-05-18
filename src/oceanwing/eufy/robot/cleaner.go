@@ -128,6 +128,7 @@ func DecodeEufyServerMsg(payload []byte) string {
 }
 
 /* ============================== Functions displaying below are used for functional testing. =============================== */
+var eufyServerInstance *EufyServer
 
 // EufyServer 用于模拟从Server端Publish消息给机器人
 type EufyServer struct {
@@ -139,7 +140,8 @@ type EufyServer struct {
 
 // NewEufyServer 创建一个空的 EufyServer 对象
 func NewEufyServer() *EufyServer {
-	return &EufyServer{}
+	eufyServerInstance = &EufyServer{}
+	return eufyServerInstance
 }
 
 // SetupRunningRobots 用于接收并处理实体机器人的心跳
@@ -210,6 +212,10 @@ func (r *EufyServer) distributeMsg(t string, payload []byte) {
 func (r *EufyServer) PublishMsgToAllRobot() {
 	if len(r.littleRobots) != 0 {
 		for _, robot := range r.littleRobots {
+			//如果hangOn不为0，则表示机器人对前次发的指令响应的结果不正确，需等待下次心跳继续验证，不要发新指令过去
+			if robot.hangOn != 0 {
+				continue
+			}
 			if robot.pubTopicl != "" {
 				r.PubTopic = robot.pubTopicl
 			}
@@ -240,19 +246,59 @@ func (r *EufyServer) PublishMsgToAllRobot() {
 	}
 }
 
+func (r *EufyServer) showTestResult() {
+	for _, rb := range r.littleRobots {
+		log.Infof("=========== Summary Result For Robot: %s ===========", rb.devKEY)
+		log.Infof("robot: %s 发出指令总数: %d", rb.devKEY, rb.totalCMD)
+		log.Infof("robot: %s 收到心跳总数: %d", rb.devKEY, rb.heartBeatCount)
+		log.Infof("robot: %s 执行暂停指令，成功: %d, 失败: %d, 总计: %d", rb.devKEY, rb.pausePassed, rb.pauseFailed, rb.pausePassed+rb.pauseFailed)
+		log.Infof("robot: %s 执行定点指令，成功: %d, 失败：%d, 总计: %d", rb.devKEY, rb.spotPassed, rb.spotFailed, rb.spotPassed+rb.spotFailed)
+		log.Infof("robot: %s 执行自动指令，成功: %d, 失败：%d, 总计: %d", rb.devKEY, rb.autoPassed, rb.autoFailed, rb.autoPassed+rb.autoFailed)
+		log.Infof("robot: %s 执行返回充电指令，成功: %d, 失败：%d, 总计: %d", rb.devKEY, rb.chargePassed, rb.chargeFailed, rb.chargePassed+rb.chargeFailed)
+		log.Infof("robot: %s 执行沿边指令，成功: %d, 失败：%d, 总计: %d", rb.devKEY, rb.edgePassed, rb.edgeFailed, rb.edgePassed+rb.edgeFailed)
+		log.Infof("robot: %s 执行精扫(小房间)指令，成功: %d, 失败：%d, 总计: %d", rb.devKEY, rb.smallRoomPassed, rb.smallRoomFailed, rb.smallRoomPassed+rb.smallRoomFailed)
+		log.Infof("robot: %s 执行设置日常速度指令，成功: %d, 失败：%d, 总计: %d", rb.devKEY, rb.speedDailyPassed, rb.speedDailyFailed, rb.speedDailyPassed+rb.speedDailyFailed)
+		log.Infof("robot: %s 执行设置强力速度指令，成功: %d, 失败：%d, 总计: %d", rb.devKEY, rb.speedStrongPassed, rb.speedStrongFailed, rb.speedStrongPassed+rb.speedStrongFailed)
+		log.Infof("robot: %s 执行打开FindMe次数：%d", rb.devKEY, rb.turnOnFindMe)
+		log.Infof("robot: %s 执行关闭FindMe次数：%d", rb.devKEY, rb.turnOffFindMe)
+	}
+}
+
 // littleRobot 用于处理实体机器人返回的心跳
 type littleRobot struct {
-	devKEY         string
-	devID          string
-	pubTopicl      string
-	subTopicl      string
-	Incoming       chan []byte
-	charging       bool
-	returnCharge   bool
-	expResultIndex byte
-	expResultValue byte
-	isCmdSent      bool
-	testPurpose    string
+	devKEY            string
+	devID             string
+	pubTopicl         string
+	subTopicl         string
+	Incoming          chan []byte
+	charging          bool
+	returnCharge      bool
+	expResultIndex    byte
+	expResultValue    byte
+	isCmdSent         bool
+	testPurpose       string
+	testCaseNum       int
+	heartBeatCount    int
+	hangOn            int
+	totalCMD          int
+	pausePassed       int
+	pauseFailed       int
+	spotPassed        int
+	spotFailed        int
+	autoPassed        int
+	autoFailed        int
+	chargePassed      int
+	chargeFailed      int
+	edgePassed        int
+	edgeFailed        int
+	smallRoomPassed   int
+	smallRoomFailed   int
+	speedStrongPassed int
+	speedStrongFailed int
+	speedDailyPassed  int
+	speedDailyFailed  int
+	turnOnFindMe      int
+	turnOffFindMe     int
 }
 
 func (robot *littleRobot) handleIncomingMsg() {
@@ -282,6 +328,9 @@ func (robot *littleRobot) handleIncomingMsg() {
 				// heartBeatInfo[18]:校验和
 				// heartBeatInfo[19]:MCU发送数据结束信号0XFA
 				if len(heartBeatInfo) == 20 {
+					// 累加心跳次数
+					robot.heartBeatCount++
+
 					log.Infof("=== 有新的心跳消息从机器 [%s] 到来 ===", robot.devKEY)
 					log.Infof("模式: %d,  device key: %s", heartBeatInfo[1], robot.devKEY)
 					log.Infof("电量: %d,  device key: %s", heartBeatInfo[10], robot.devKEY)
@@ -293,12 +342,15 @@ func (robot *littleRobot) handleIncomingMsg() {
 					log.Infof("房间: %d,  device key: %s", heartBeatInfo[9], robot.devKEY)
 					log.Infof("充电: %d,  device key: %s", heartBeatInfo[11], robot.devKEY)
 					log.Infof("停止: %d,  device key: %s", heartBeatInfo[13], robot.devKEY)
+
 					//如果ErrorCode不为0，则机器内部可能出错
 					if heartBeatInfo[12] != 0 {
 						log.Errorf("警告! ErrorCode: %d, device key: %s", heartBeatInfo[12], robot.devKEY)
 					}
+
 					//水箱状态
-					log.Infof("水箱状态:  %d", heartBeatInfo[6])
+					// log.Infof("水箱状态:  %d", heartBeatInfo[6])
+
 					// 如果电量在20%以下且workmode不等于3,则让机器人返回充电
 					if heartBeatInfo[10] <= 20 {
 						robot.charging = true
@@ -307,91 +359,176 @@ func (robot *littleRobot) handleIncomingMsg() {
 						} else {
 							robot.returnCharge = false
 						}
-						// 如果电量已超过90%且仍在充电状态，则把两个变量设置为false
-					} else if heartBeatInfo[10] >= 90 && robot.charging {
+						// 如果电量已超过80%且仍在充电状态，则把两个变量设置为false, robot.charging
+					} else if heartBeatInfo[10] >= 80 && heartBeatInfo[11] == 1 {
 						robot.charging = false
 						robot.returnCharge = false
 					}
-				}
-				if len(heartBeatInfo) == 20 && robot.isCmdSent && robot.expResultIndex != 99 && robot.devID == "" {
-					if robot.testPurpose != "" {
-						log.Infof("Test Case: %s, device key: %s", robot.testPurpose, robot.devKEY)
+
+					//判断结果
+					if robot.isCmdSent && robot.expResultIndex != 99 && robot.devID == "" {
+						if heartBeatInfo[robot.expResultIndex] != robot.expResultValue {
+							//如果前次发完指令后，得到的心跳验证不通过，则等待下一次心跳来继续验证，最多给3次机会
+							robot.hangOn++
+							if robot.hangOn == 3 {
+								log.Infof("TestCase Failed --> %s, Expected value is: %d, Actual value is: %d, device key: %s",
+									robot.testPurpose, robot.expResultValue, heartBeatInfo[robot.expResultIndex], robot.devKEY)
+								robot.hangOn = 0
+								robot.recordTestResult(false)
+							}
+						} else {
+							log.Infof("TestCase Passed --> %s, device key: %s", robot.testPurpose, robot.devKEY)
+							robot.hangOn = 0
+							robot.recordTestResult(true)
+						}
+
+						//如果hangOn为0，则表示本次测试完毕，可以重置相关测试条件
+						if robot.hangOn == 0 {
+							robot.isCmdSent = false
+							robot.expResultIndex = 99
+							robot.testPurpose = ""
+						}
 					}
-					if heartBeatInfo[robot.expResultIndex] != robot.expResultValue {
-						log.Infof("Expected value is: %d, Actual value is: %d, device key: %s", robot.expResultValue, heartBeatInfo[robot.expResultIndex], robot.devKEY)
-					} else {
-						log.Infof("test case passed. device key: %s", robot.devKEY)
-					}
-					robot.isCmdSent = false
-					robot.expResultIndex = 99
-					robot.testPurpose = ""
 				}
 			}
 		}
 	}()
 }
 
+func (robot *littleRobot) recordTestResult(passed bool) {
+	switch robot.testCaseNum {
+	case 1:
+		if passed {
+			robot.spotPassed++
+		} else {
+			robot.spotFailed++
+		}
+	case 2:
+		if passed {
+			robot.speedStrongPassed++
+		} else {
+			robot.speedStrongFailed++
+		}
+	case 3:
+		if passed {
+			robot.autoPassed++
+		} else {
+			robot.autoFailed++
+		}
+	case 4:
+		if passed {
+			robot.chargePassed++
+		} else {
+			robot.chargeFailed++
+		}
+	case 5:
+		if passed {
+			robot.edgePassed++
+		} else {
+			robot.edgeFailed++
+		}
+	case 6:
+		if passed {
+			robot.smallRoomPassed++
+		} else {
+			robot.smallRoomFailed++
+		}
+	case 7:
+		if passed {
+			robot.speedDailyPassed++
+		} else {
+			robot.speedDailyFailed++
+		}
+	case 8:
+		if passed {
+			robot.pausePassed++
+		} else {
+			robot.pauseFailed++
+		}
+	}
+}
+
 func getCommandToDevice(index int, rb *littleRobot) []byte {
 	rb.isCmdSent = true
+	//指令总数累加1
+	rb.totalCMD++
 	switch index {
 	case 1:
 		// 定点 0x01, ok
 		rb.expResultIndex = 1
 		rb.expResultValue = 1
-		rb.testPurpose = "设置工作模式为： [0x01], 定点"
+		rb.testPurpose = "设置工作模式为：定点"
+		rb.testCaseNum = 1
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x01, 0xE2, 0xFA}
 	case 2:
 		//强力 0x01
 		rb.expResultIndex = 8
 		rb.expResultValue = 1
-		rb.testPurpose = "设置速度为： [0x01], 强力"
+		rb.testPurpose = "设置速度为：强力"
+		rb.testCaseNum = 2
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE8, 0x01, 0xE9, 0xFA}
 	case 3:
 		// 自动 0x02, ok
 		rb.expResultIndex = 1
 		rb.expResultValue = 2
-		rb.testPurpose = "设置工作模式为： [0x02], 自动"
+		rb.testPurpose = "设置工作模式为：自动"
+		rb.testCaseNum = 3
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x02, 0xE3, 0xFA}
 	case 4:
 		// 返回充电 0x03, ok
 		rb.expResultIndex = 1
 		rb.expResultValue = 3
-		rb.testPurpose = "设置工作模式为： [0x03], 返回充电"
+		rb.testPurpose = "设置工作模式为：返回充电"
+		rb.testCaseNum = 4
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x03, 0xE4, 0xFA}
 	case 5:
 		// 沿边 0x04, ok
 		rb.expResultIndex = 1
 		rb.expResultValue = 4
-		rb.testPurpose = "设置工作模式为： [0x04], 沿边"
+		rb.testPurpose = "设置工作模式为：沿边"
+		rb.testCaseNum = 5
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x04, 0xE5, 0xFA}
 	case 6:
 		//精扫 0x05
 		rb.expResultIndex = 1
 		rb.expResultValue = 5
-		rb.testPurpose = "设置工作模式为： [0x05], 精扫"
+		rb.testPurpose = "设置工作模式为：精扫"
+		rb.testCaseNum = 6
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x05, 0xE6, 0xFA}
 	case 7:
 		//日常 0x00
 		rb.expResultIndex = 8
 		rb.expResultValue = 0
-		rb.testPurpose = "设置速度为： [0x00], 日常"
+		rb.testPurpose = "设置速度为：日常"
+		rb.testCaseNum = 7
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE8, 0x00, 0xE8, 0xFA}
 	case 8:
 		// 暂停 0x00, ok
 		rb.expResultIndex = 1
 		rb.expResultValue = 0
-		rb.testPurpose = "设置工作模式为： [0x00], 暂停"
+		rb.testPurpose = "设置工作模式为：暂停"
+		rb.testCaseNum = 8
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x00, 0xE1, 0xFA}
 	// ------------------------- Find Me Alert: 0xEC -------------------------- good.
 	case 9:
 		// turn on alert: 0x01
 		rb.testPurpose = "打开 [Find Me Alert]"
+		rb.turnOnFindMe++
+		log.Infof("执行: %s, device key: %s", rb.testPurpose, rb.devKEY)
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xEC, 0x01, 0xED, 0xFA}
 	case 10:
 		// turn off alert: 0x00
 		rb.testPurpose = "关闭 [Find Me Alert]"
+		rb.turnOffFindMe++
+		log.Infof("执行: %s, device key: %s", rb.testPurpose, rb.devKEY)
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xEC, 0x00, 0xEC, 0xFA}
 	default:
 		return nil
 	}
+}
+
+// ShowSummaryResult hh.
+func ShowSummaryResult() {
+	log.Info("测试结束")
+	eufyServerInstance.showTestResult()
 }

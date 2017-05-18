@@ -82,5 +82,5 @@ func main() {
 	signal.Notify(channelSignal, os.Interrupt)
 	signal.Notify(channelSignal, syscall.SIGTERM)
 	<-channelSignal
-	log.Info("Test end")
+	robot.ShowSummaryResult()
 }
