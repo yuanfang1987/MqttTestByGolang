@@ -9,8 +9,9 @@ import (
 // NewEufyGenie return a new instance.
 func NewEufyGenie(url string) *BaseEufyGenie {
 	return &BaseEufyGenie{
-		client:  &http.Client{},
-		baseURL: url, // "http://10.10.10.254"
+		client:   &http.Client{},
+		baseURL:  url, // "http://10.10.10.254"
+		respBody: make(chan []byte),
 	}
 }
 
