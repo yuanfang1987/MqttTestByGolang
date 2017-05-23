@@ -108,10 +108,10 @@ func (a *AlexaSkill) getCurrentPageItems(resp *http.Response) ([]string, string)
 	doc, err := goquery.NewDocumentFromResponse(resp)
 	if err != nil {
 		log.Errorf("goquery parse resp fail: %s", err.Error())
-		return make([]string, 1), ""
+		return []string{}, ""
 	}
 
-	li := doc.Find("#mainResults").Find("li")
+	li := doc.Find("div.s-item-container")
 	getItemURLFunc := func(index int, sel *goquery.Selection) {
 		url, bl := sel.Find("a").First().Attr("href")
 		if bl {
@@ -122,6 +122,7 @@ func (a *AlexaSkill) getCurrentPageItems(resp *http.Response) ([]string, string)
 	li.Each(getItemURLFunc)
 	// get next page url
 	nextURL := a.getNextPageURL(doc)
+	log.Debugf("get next page link is: %s", nextURL)
 	return allItemsURL, nextURL
 }
 
@@ -132,7 +133,7 @@ func (a *AlexaSkill) getData(categoryName, url string, resp *http.Response) []st
 	doc, err := goquery.NewDocumentFromResponse(resp)
 	if err != nil {
 		log.Errorf("goquery parse resp fail: %s", err.Error())
-		return make([]string, 1)
+		return []string{}
 	}
 	// get cmd title
 	title := doc.Find("h1.a2s-title-content").Text()
@@ -197,7 +198,7 @@ func (a *AlexaSkill) runEngine() {
 	f, _ := os.Create("alexaData.csv")
 	defer f.Close()
 	writer := csv.NewWriter(f)
-	title := []string{"CategoryName", "AppName", "ReviewStar", "ReviewStarNum", "CMD1", "CMD2", "CMD3", "URL"}
+	title := []string{"CategoryName", "AppName", "URL", "ReviewStar", "ReviewStarNum", "CMD1", "CMD2", "CMD3"}
 	writer.Write(title)
 	writer.Flush()
 
@@ -207,17 +208,22 @@ func (a *AlexaSkill) runEngine() {
 	var flag bool
 	var resp *http.Response
 	var err error
+	var currentPageIndex int
 	for i, categoryURL := range a.categoryURLs {
+		currentPageIndex = 1
 		resp, err = a.sendRequest("GET", categoryURL, true)
 		if err != nil {
 			log.Errorf("Enter category fail: %s", categoryURL)
 			continue
 		}
+		log.Debugf("进入第 %d 个 Category, URL: %s", i, categoryURL)
 		flag = true
 
 		for flag {
 			// 取当前页的 16 个item的URL以及 Next Page 的URL
+			log.Debugf("Current page is Number.%d page.", currentPageIndex)
 			currentItemURLs, nextPageURL = a.getCurrentPageItems(resp)
+			log.Debugf("")
 			for _, itemURL := range currentItemURLs {
 				resp, err = a.sendRequest("GET", itemURL, true)
 				if err != nil {
@@ -230,12 +236,15 @@ func (a *AlexaSkill) runEngine() {
 			}
 			// 进入下一页
 			if nextPageURL != "" {
-				resp, _ = a.sendRequest("GET", nextPageURL, true)
+				resp, err = a.sendRequest("GET", nextPageURL, true)
+				if err != nil {
+					log.Errorf("Enter next page fail: %s, current page is: %d", err.Error(), currentPageIndex)
+				}
+				currentPageIndex++
 			} else {
 				flag = false
 			}
 		}
-
 	}
 }
 
