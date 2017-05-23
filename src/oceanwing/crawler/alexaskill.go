@@ -216,7 +216,7 @@ func (a *AlexaSkill) runEngine() {
 			log.Errorf("Enter category fail: %s", categoryURL)
 			continue
 		}
-		log.Debugf("进入第 %d 个 Category, URL: %s", i, categoryURL)
+		log.Infof("进入第 %d 个 Category, URL: %s", i, categoryURL)
 		flag = true
 
 		for flag {
