@@ -223,7 +223,7 @@ func (a *AlexaSkill) runEngine() {
 			// 取当前页的 16 个item的URL以及 Next Page 的URL
 			log.Debugf("Current page is Number.%d page.", currentPageIndex)
 			currentItemURLs, nextPageURL = a.getCurrentPageItems(resp)
-			log.Debugf("")
+			log.Debugf("current item number: %d", len(currentItemURLs))
 			for _, itemURL := range currentItemURLs {
 				resp, err = a.sendRequest("GET", itemURL, true)
 				if err != nil {
@@ -248,9 +248,71 @@ func (a *AlexaSkill) runEngine() {
 	}
 }
 
+func (a *AlexaSkill) runEngineConcurrent(categoryURL, categoryName string) {
+	var currentItemURLs []string
+	var content []string
+	var nextPageURL string
+	var flag bool
+	var resp *http.Response
+	var err error
+	var currentPageIndex int
+
+	resp, err = a.sendRequest("GET", categoryURL, false)
+	if err != nil {
+		log.Errorf("Enter category: %s fail: %s", categoryURL, err.Error())
+	}
+	log.Debugf("Enter category: %s success.", categoryName)
+
+	flag = true
+	currentPageIndex = 1
+	for flag {
+		// 取当前页的 16 个item的URL以及 Next Page 的URL
+		log.Debugf("Current page is Number.%d page.", currentPageIndex)
+		currentItemURLs, nextPageURL = a.getCurrentPageItems(resp)
+		log.Debugf("current item number: %d", len(currentItemURLs))
+		for _, itemURL := range currentItemURLs {
+			resp, err = a.sendRequest("GET", itemURL, false)
+			if err != nil {
+				log.Errorf("Enter Item page: %s fail, err: %s", itemURL, err.Error())
+				continue
+			}
+			content = a.getData(categoryName, itemURL, resp)
+			go writeToResult(content)
+		}
+		// 进入下一页
+		if nextPageURL != "" {
+			resp, err = a.sendRequest("GET", nextPageURL, false)
+			if err != nil {
+				log.Errorf("Enter next page fail: %s, current page is: %d", err.Error(), currentPageIndex)
+			}
+			currentPageIndex++
+		} else {
+			flag = false
+		}
+	}
+
+}
+
 // Run is an entrance.
 func Run(url string, heads map[string]string) {
 	inst := newAlexaSkill(heads)
 	inst.getCategoryURLs(url)
 	inst.runEngine()
+}
+
+// RunByConcurrentMode hh.
+func RunByConcurrentMode(url string, heads map[string]string) {
+	//create result file
+	createNewFile("alexaData.csv")
+	defer closeFile()
+	firstInst := newAlexaSkill(heads)
+	firstInst.getCategoryURLs(url)
+	allCategoryURL := firstInst.categoryURLs
+	allCategoryName := firstInst.categoryName
+	for i, v := range allCategoryURL {
+		go func(url, name string) {
+			inst := newAlexaSkill(heads)
+			inst.runEngineConcurrent(url, name)
+		}(v, allCategoryName[i])
+	}
 }
