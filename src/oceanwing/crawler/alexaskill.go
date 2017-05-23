@@ -305,14 +305,17 @@ func RunByConcurrentMode(url string, heads map[string]string) {
 	//create result file
 	createNewFile("alexaData.csv")
 	defer closeFile()
+
 	firstInst := newAlexaSkill(heads)
 	firstInst.getCategoryURLs(url)
 	allCategoryURL := firstInst.categoryURLs
 	allCategoryName := firstInst.categoryName
+
 	for i, v := range allCategoryURL {
-		go func(url, name string) {
+		go func(urls, name string) {
 			inst := newAlexaSkill(heads)
-			inst.runEngineConcurrent(url, name)
+			inst.runEngineConcurrent(urls, name)
 		}(v, allCategoryName[i])
 	}
+
 }
