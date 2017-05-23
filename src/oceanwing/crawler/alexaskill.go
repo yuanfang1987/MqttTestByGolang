@@ -248,6 +248,52 @@ func (a *AlexaSkill) runEngine() {
 	}
 }
 
+func (a *AlexaSkill) runEngineVersion2() {
+	var currentItemURLs []string
+	var content []string
+	var nextPageURL string
+	var flag bool
+	var resp *http.Response
+	var err error
+	var currentPageIndex int
+	for i, categoryURL := range a.categoryURLs {
+		currentPageIndex = 1
+		resp, err = a.sendRequest("GET", categoryURL, true)
+		if err != nil {
+			log.Errorf("Enter category fail: %s", categoryURL)
+			continue
+		}
+		log.Infof("进入第 %d 个 Category, URL: %s", i, categoryURL)
+		flag = true
+
+		for flag {
+			// 取当前页的 16 个item的URL以及 Next Page 的URL
+			log.Debugf("Current page is Number.%d page.", currentPageIndex)
+			currentItemURLs, nextPageURL = a.getCurrentPageItems(resp)
+			log.Debugf("current item number: %d", len(currentItemURLs))
+			for _, itemURL := range currentItemURLs {
+				resp, err = a.sendRequest("GET", itemURL, true)
+				if err != nil {
+					log.Errorf("Enter Item page: %s fail, err: %s", itemURL, err.Error())
+					continue
+				}
+				content = a.getData(a.categoryName[i], itemURL, resp)
+				writeToResult(content)
+			}
+			// 进入下一页
+			if nextPageURL != "" {
+				resp, err = a.sendRequest("GET", nextPageURL, true)
+				if err != nil {
+					log.Errorf("Enter next page fail: %s, current page is: %d", err.Error(), currentPageIndex)
+				}
+				currentPageIndex++
+			} else {
+				flag = false
+			}
+		}
+	}
+}
+
 func (a *AlexaSkill) runEngineConcurrent(categoryURL, categoryName string) {
 	var currentItemURLs []string
 	var content []string
@@ -300,6 +346,17 @@ func Run(url string, heads map[string]string) {
 	inst.runEngine()
 }
 
+// RunVersion2 hh.
+func RunVersion2(url string, heads map[string]string) {
+	// create a csv file
+	createNewFile("alexaData.csv")
+	defer closeFile()
+
+	inst := newAlexaSkill(heads)
+	inst.getCategoryURLs(url)
+	inst.runEngineVersion2()
+}
+
 // RunByConcurrentMode hh.
 func RunByConcurrentMode(url string, heads map[string]string) {
 	//create result file
@@ -318,4 +375,6 @@ func RunByConcurrentMode(url string, heads map[string]string) {
 		}(v, allCategoryName[i])
 	}
 
+	forever := make(chan struct{})
+	<-forever
 }
