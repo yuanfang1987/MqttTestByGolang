@@ -118,3 +118,20 @@ func (b *BaseEufyGenie) queryConnectStatus(wifiName string) {
 	}
 	log.Errorf("fail to connect to wifi [%s]after waiting for 30 seconds", wifiName)
 }
+
+// SetHideSSID hide wifi.  3.5  x为1表示隐藏AP, x为0表示恢复AP
+func (b *BaseEufyGenie) SetHideSSID(value string) {
+	b.sendGet("/httpapi.asp?command=setHideSSID:" + value)
+	strOK := b.getStringResult()
+	log.Infof("set wifi hide status: %s and execute result is: %s", value, strOK)
+	// query status
+	b.getHideSSID()
+}
+
+// 3.6
+func (b *BaseEufyGenie) getHideSSID() {
+	b.sendGet("/httpapi.asp?command=getHideSSID")
+	myJSON := b.convertJSON()
+	strOK, _ := myJSON.Get("hideSSID").String()
+	log.Infof("current wifi hide status: %s", strOK)
+}
