@@ -15,6 +15,7 @@ type BaseEufyGenie struct {
 	client   *http.Client
 	baseURL  string
 	respBody chan []byte
+	respJSON *SimpleJSON.Json
 }
 
 // NewEufyGenie return a new instance.
@@ -45,6 +46,7 @@ func (b *BaseEufyGenie) convertJSON() *SimpleJSON.Json {
 	bb := <-b.respBody
 	JSONInstance, err := SimpleJSON.NewJson(bb)
 	if err == nil {
+		b.respJSON = JSONInstance
 		return JSONInstance
 	}
 	log.Errorf("convert to JSON fail: %s", err)
@@ -56,6 +58,10 @@ func (b *BaseEufyGenie) getStringResult() string {
 	return string(bb)
 }
 
+func (b *BaseEufyGenie) getBytesResult() []byte {
+	return <-b.respBody
+}
+
 func hexToString(hexStr string) string {
 	res, err := hex.DecodeString(hexStr)
 	if err == nil {
@@ -63,4 +69,8 @@ func hexToString(hexStr string) string {
 	}
 	log.Errorf("Decode hex to string fail: %s", err)
 	return ""
+}
+
+func stringToHex(str string) string {
+	return hex.EncodeToString([]byte(str))
 }

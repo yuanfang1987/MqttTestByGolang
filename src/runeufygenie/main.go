@@ -10,7 +10,7 @@ import (
 func main() {
 	commontool.InitLogInstance("debug")
 	defer log.Flush()
-	// myGenie := genie.NewEufyGenie("http://10.10.10.254")
-	// myGenie.GetPlayerStatus("status", "play")
-	cases.RunMusicCases("http://10.10.10.254")
+
+	//cases.RunMusicCases("http://10.10.10.254")
+	cases.RunWifiCases("http://10.10.10.254", "OceanwingMobile", "0ceanwing11")
 }
