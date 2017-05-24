@@ -39,6 +39,11 @@ func (b *BaseEufyGenie) convertJSON() *SimpleJSON.Json {
 	return nil
 }
 
+func (b *BaseEufyGenie) getStringResult() string {
+	bb := <-b.respBody
+	return string(bb)
+}
+
 func hexToString(hexStr string) string {
 	res, err := hex.DecodeString(hexStr)
 	if err == nil {
