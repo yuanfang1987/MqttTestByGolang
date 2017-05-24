@@ -1,4 +1,4 @@
-package genie
+package function
 
 import (
 	"encoding/hex"

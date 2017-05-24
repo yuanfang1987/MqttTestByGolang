@@ -1,4 +1,4 @@
-package genie
+package function
 
 import (
 	"net/http"
@@ -82,7 +82,7 @@ func (b *BaseEufyGenie) SetMute(value string) {
 
 // SetPlayMode hh, 0 列表循环; 1 单曲循环; 2 随机播放; -1 列表出现
 func (b *BaseEufyGenie) SetPlayMode(mod string) {
-	b.sendGet("http://10.10.10.254/httpapi.asp?command=setPlayerCmd:loopmode:" + mod)
+	b.sendGet("/httpapi.asp?command=setPlayerCmd:loopmode:" + mod)
 	okStr := b.getStringResult()
 	log.Infof("set play mode OK? ---> %s", okStr)
 }
