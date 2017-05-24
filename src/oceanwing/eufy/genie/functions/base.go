@@ -1,4 +1,4 @@
-package function
+package functions
 
 import (
 	"encoding/hex"
@@ -14,6 +14,15 @@ type BaseEufyGenie struct {
 	client   *http.Client
 	baseURL  string
 	respBody chan []byte
+}
+
+// NewEufyGenie return a new instance.
+func NewEufyGenie(url string) *BaseEufyGenie {
+	return &BaseEufyGenie{
+		client:   &http.Client{},
+		baseURL:  url, // "http://10.10.10.254"
+		respBody: make(chan []byte),
+	}
 }
 
 func (b *BaseEufyGenie) sendGet(urlPath string) {
