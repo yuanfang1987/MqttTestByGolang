@@ -11,5 +11,4 @@ func RunWifiCases(url, wifi, pwd string) {
 
 	Instance.GetAvailableWIFI()
 	Instance.ConnectWifi(wifi, pwd)
-	Instance.QueryConnectStatus()
 }

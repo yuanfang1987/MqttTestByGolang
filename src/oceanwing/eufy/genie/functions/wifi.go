@@ -83,23 +83,38 @@ func (b *BaseEufyGenie) ConnectWifi(wifiName, password string) {
 	b.getStringResult()
 
 	// 查询结果
-	time.Sleep(10 * time.Second)
+	b.queryConnectStatus(wifiName)
+}
+
+// ConnectToHideWifi hh. 3.3
+func (b *BaseEufyGenie) ConnectToHideWifi(wifiName, password string) {
+	var url string
+	ssid := stringToHex(wifiName)
+	if password != "" {
+		pwd := stringToHex(password)
+		url = "/httpapi.asp?command=wlanConnectHideApEx:" + ssid + ":" + pwd
+	} else {
+		url = "/httpapi.asp?command=wlanConnectHideApEx:" + ssid
+	}
+	b.sendGet(url)
+	// 忽略执行结果
+	b.getStringResult()
+	// 查询结果
+	b.queryConnectStatus(wifiName)
+}
+
+// queryConnectStatus hh.  3.4
+func (b *BaseEufyGenie) queryConnectStatus(wifiName string) {
 	for i := 0; i < 3; i++ {
-		res := b.QueryConnectStatus()
+		// 每次执行新的连接后，需等10秒钟后再查询状态
+		time.Sleep(10 * time.Second)
+		b.sendGet("/httpapi.asp?command=wlanGetConnectState")
+		res := b.getStringResult()
 		if res == "OK" {
 			log.Infof("connect wifi %s success", wifiName)
 			return
 		}
 		log.Debugf("current connect status is: %s, wait 10 second and then try query again.", res)
-		time.Sleep(10 * time.Second)
 	}
 	log.Errorf("fail to connect to wifi [%s]after waiting for 30 seconds", wifiName)
-}
-
-// QueryConnectStatus hh.  3.4
-func (b *BaseEufyGenie) QueryConnectStatus() string {
-	b.sendGet("/httpapi.asp?command=wlanGetConnectState")
-	strOK := b.getStringResult()
-	log.Infof("query wifi connected status is: %s", strOK)
-	return strOK
 }
