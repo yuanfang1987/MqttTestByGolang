@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	SimpleJSON "github.com/bitly/go-simplejson"
 	log "github.com/cihub/seelog"
@@ -26,6 +27,7 @@ func NewEufyGenie(url string) *BaseEufyGenie {
 }
 
 func (b *BaseEufyGenie) sendGet(urlPath string) {
+	time.Sleep(4 * time.Second)
 	go func() {
 		bd, err := b.client.Get(b.baseURL + urlPath)
 		if err != nil {
@@ -45,6 +47,7 @@ func (b *BaseEufyGenie) convertJSON() *SimpleJSON.Json {
 	if err == nil {
 		return JSONInstance
 	}
+	log.Errorf("convert to JSON fail: %s", err)
 	return nil
 }
 

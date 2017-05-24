@@ -6,6 +6,7 @@ import (
 
 // RunMusicCases hh.
 func RunMusicCases(url string) {
+	log.Info("========= Running music test cases ==========")
 	// new instance
 	newTestInstance(url)
 	log.Info("create a new eufygenie instance.")
