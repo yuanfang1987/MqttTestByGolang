@@ -31,6 +31,7 @@ type WifiInfo struct {
 // GetAvailableWIFI hh.  3.1
 func (b *BaseEufyGenie) GetAvailableWIFI() {
 	b.sendGet("/httpapi.asp?command=wlanGetApListEx")
+	log.Info("execute get available wifi list.")
 	bd := b.getBytesResult()
 	err := json.Unmarshal(bd, &myWifi)
 	if err != nil {
@@ -79,6 +80,7 @@ func (b *BaseEufyGenie) ConnectWifi(wifiName, password string) {
 	pwd := stringToHex(password)
 	url := "/httpapi.asp?command=wlanConnectApEx:ssid=" + ssid + ":ch=" + channel + ":auth=" + auth + ":encty=" + encry + ":pwd=" + pwd + ":chext=1"
 	b.sendGet(url)
+	log.Infof("execute connect to wifi: %s", wifiName)
 	// 忽略执行结果
 	b.getStringResult()
 
@@ -97,6 +99,7 @@ func (b *BaseEufyGenie) ConnectToHideWifi(wifiName, password string) {
 		url = "/httpapi.asp?command=wlanConnectHideApEx:" + ssid
 	}
 	b.sendGet(url)
+	log.Infof("execute connect to hide wifi: %s", wifiName)
 	// 忽略执行结果
 	b.getStringResult()
 	// 查询结果
@@ -122,16 +125,19 @@ func (b *BaseEufyGenie) queryConnectStatus(wifiName string) {
 // SetHideSSID hide wifi.  3.5  x为1表示隐藏AP, x为0表示恢复AP
 func (b *BaseEufyGenie) SetHideSSID(value string) {
 	b.sendGet("/httpapi.asp?command=setHideSSID:" + value)
+	log.Infof("execute set hide SSID to value: %s", value)
 	strOK := b.getStringResult()
-	log.Infof("set wifi hide status: %s and execute result is: %s", value, strOK)
+	log.Infof("set wifi hide status: %s and execute result is: %s, test case passed or not? ---> %t", value,
+		strOK, strOK == "OK")
 	// query status
-	b.getHideSSID()
+	b.getHideSSID(value)
 }
 
 // 3.6
-func (b *BaseEufyGenie) getHideSSID() {
+func (b *BaseEufyGenie) getHideSSID(expValue string) {
 	b.sendGet("/httpapi.asp?command=getHideSSID")
+	log.Info("execute get hide SSID status.")
 	myJSON := b.convertJSON()
 	strOK, _ := myJSON.Get("hideSSID").String()
-	log.Infof("current wifi hide status: %s", strOK)
+	log.Infof("current wifi hide status: %s, test case passed or not? ---> %t", strOK, strOK == expValue)
 }
