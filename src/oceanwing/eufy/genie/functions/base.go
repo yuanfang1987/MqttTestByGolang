@@ -12,10 +12,12 @@ import (
 
 // BaseEufyGenie hh.
 type BaseEufyGenie struct {
-	client   *http.Client
-	baseURL  string
-	respBody chan []byte
-	respJSON *SimpleJSON.Json
+	client    *http.Client
+	baseURL   string
+	respBody  chan []byte
+	respJSON  *SimpleJSON.Json
+	passedNum int
+	failedNum int
 }
 
 // NewEufyGenie return a new instance.
@@ -73,4 +75,11 @@ func hexToString(hexStr string) string {
 
 func stringToHex(str string) string {
 	return hex.EncodeToString([]byte(str))
+}
+
+func passOrFail(bl bool) string {
+	if bl {
+		return "Pass"
+	}
+	return "Fail"
 }

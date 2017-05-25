@@ -2,14 +2,16 @@ package functions
 
 import (
 	"encoding/json"
+	"oceanwing/eufy/genie/results"
 	"strconv"
-
 	"time"
 
 	log "github.com/cihub/seelog"
 )
 
 var myWifi AvailableWIFIList
+
+const categoryWifi = "WIFI"
 
 // AvailableWIFIList hh.
 type AvailableWIFIList struct {
@@ -36,12 +38,14 @@ func (b *BaseEufyGenie) GetAvailableWIFI() {
 	err := json.Unmarshal(bd, &myWifi)
 	if err != nil {
 		log.Errorf("get wifi list and decode json fail: %s", err.Error())
+		results.WriteToResultFile(categoryWifi, "get available wifi list", "Fail")
 		return
 	}
 	num, _ := strconv.Atoi(myWifi.Res)
 	log.Infof("available wifi list number: %d", num)
 	if num <= 0 {
 		log.Error("Get wifi list fail, found nothing!")
+		results.WriteToResultFile(categoryWifi, "get available wifi list", "Fail")
 		return
 	}
 	for i, wifi := range myWifi.Aplist {
@@ -54,6 +58,7 @@ func (b *BaseEufyGenie) GetAvailableWIFI() {
 		log.Infof("encry: %s", wifi.Encry)
 		log.Infof("extch %s", wifi.Extch)
 	}
+	results.WriteToResultFile(categoryWifi, "get available wifi list", "Pass")
 }
 
 // ConnectWifi hh. 3.2
@@ -85,7 +90,8 @@ func (b *BaseEufyGenie) ConnectWifi(wifiName, password string) {
 	b.getStringResult()
 
 	// 查询结果
-	b.queryConnectStatus(wifiName)
+	re := b.queryConnectStatus(wifiName)
+	results.WriteToResultFile(categoryWifi, "Connect to wifi "+wifiName, re)
 }
 
 // ConnectToHideWifi hh. 3.3
@@ -103,11 +109,12 @@ func (b *BaseEufyGenie) ConnectToHideWifi(wifiName, password string) {
 	// 忽略执行结果
 	b.getStringResult()
 	// 查询结果
-	b.queryConnectStatus(wifiName)
+	re := b.queryConnectStatus(wifiName)
+	results.WriteToResultFile(categoryWifi, "Connect to hide wifi "+wifiName, re)
 }
 
 // queryConnectStatus hh.  3.4
-func (b *BaseEufyGenie) queryConnectStatus(wifiName string) {
+func (b *BaseEufyGenie) queryConnectStatus(wifiName string) string {
 	for i := 0; i < 3; i++ {
 		// 每次执行新的连接后，需等10秒钟后再查询状态
 		time.Sleep(10 * time.Second)
@@ -115,11 +122,12 @@ func (b *BaseEufyGenie) queryConnectStatus(wifiName string) {
 		res := b.getStringResult()
 		if res == "OK" {
 			log.Infof("connect wifi %s success", wifiName)
-			return
+			return "Pass"
 		}
 		log.Debugf("current connect status is: %s, wait 10 second and then try query again.", res)
 	}
 	log.Errorf("fail to connect to wifi [%s]after waiting for 30 seconds", wifiName)
+	return "Fail"
 }
 
 // SetHideSSID hide wifi.  3.5  x为1表示隐藏AP, x为0表示恢复AP
@@ -130,14 +138,17 @@ func (b *BaseEufyGenie) SetHideSSID(value string) {
 	log.Infof("set wifi hide status: %s and execute result is: %s, test case passed or not? ---> %t", value,
 		strOK, strOK == "OK")
 	// query status
-	b.getHideSSID(value)
+	re := b.getHideSSID(value)
+	results.WriteToResultFile(categoryWifi, "set hide ssid to "+value, re)
 }
 
 // 3.6
-func (b *BaseEufyGenie) getHideSSID(expValue string) {
+func (b *BaseEufyGenie) getHideSSID(expValue string) string {
 	b.sendGet("/httpapi.asp?command=getHideSSID")
 	log.Info("execute get hide SSID status.")
 	myJSON := b.convertJSON()
 	strOK, _ := myJSON.Get("hideSSID").String()
-	log.Infof("current wifi hide status: %s, test case passed or not? ---> %t", strOK, strOK == expValue)
+	re := passOrFail(strOK == expValue)
+	log.Infof("current wifi hide status: %s, test case passed or not? ---> %s", strOK, re)
+	return re
 }
