@@ -44,6 +44,8 @@ func (a *AlexaSkill) addCookies(req *http.Request) {
 }
 
 func (a *AlexaSkill) sendRequest(method, url string, needCookie bool) (*http.Response, error) {
+	//为了应对反爬虫，在每次发起请求之前，先暂停2秒钟
+	time.Sleep(2 * time.Second)
 	var resp *http.Response
 	var err error
 	req, _ := http.NewRequest(method, url, nil)
@@ -66,9 +68,6 @@ func (a *AlexaSkill) sendRequest(method, url string, needCookie bool) (*http.Res
 
 // get category urls and store their names.
 func (a *AlexaSkill) getCategoryURLs(url string) {
-	// req, _ := http.NewRequest("GET", url, nil)
-	// add headers
-	// a.addHeaders(req)
 	resp, err := a.sendRequest("GET", url, false)
 	if err != nil {
 		log.Error("Stop programe")
@@ -84,6 +83,7 @@ func (a *AlexaSkill) getCategoryURLs(url string) {
 	}
 
 	li := doc.Find("div.categoryRefinementsSection").Find("ul").Find("li")
+	log.Infof("Found category URL number: %d", li.Length())
 	myFunc := func(index int, sel *goquery.Selection) {
 		// get category urls.
 		href, bl := sel.Find("a").Attr("href")
@@ -112,6 +112,7 @@ func (a *AlexaSkill) getCurrentPageItems(resp *http.Response) ([]string, string)
 	}
 
 	li := doc.Find("div.s-item-container")
+	log.Infof("Found %d items on current page.", li.Length())
 	getItemURLFunc := func(index int, sel *goquery.Selection) {
 		url, bl := sel.Find("a").First().Attr("href")
 		if bl {
