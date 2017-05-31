@@ -87,9 +87,6 @@ func (a *AlexaSkill) getCategoryURLs(url string) {
 		log.Errorf("goquery parse doc from response fail: %s", err.Error())
 		os.Exit(1)
 	}
-	//debug find title
-	title := doc.Find("title").Text()
-	log.Infof("title is: %s", title)
 	li := doc.Find("div.categoryRefinementsSection").Find("ul").Find("li")
 	log.Infof("Found category URL number: %d", li.Length())
 	myFunc := func(index int, sel *goquery.Selection) {
