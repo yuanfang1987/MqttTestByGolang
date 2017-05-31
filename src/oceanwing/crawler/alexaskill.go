@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"net/http"
+	"oceanwing/commontool"
 	"os"
 	"strings"
 	"time"
@@ -31,20 +32,22 @@ func newAlexaSkill(headerMap map[string]string) *AlexaSkill {
 func (a *AlexaSkill) addHeaders(req *http.Request) {
 	for key, value := range a.headers {
 		req.Header.Add(key, value)
-		log.Debugf("add header, key: %s, value: %s", key, value)
+		//log.Debugf("add header, key: %s, value: %s", key, value)
 	}
 }
 
 func (a *AlexaSkill) addCookies(req *http.Request) {
 	for _, c := range a.cookieList {
 		req.AddCookie(c)
-		log.Debugf("add cookie: %s", c.String())
+		//log.Debugf("add cookie: %s", c.String())
 	}
 }
 
 func (a *AlexaSkill) sendRequest(method, url string, needCookie bool) (*http.Response, error) {
-	//为了应对反爬虫，在每次发起请求之前，先暂停2秒钟
-	time.Sleep(2 * time.Second)
+	//为了应对反爬虫，在每次发起请求之前，先暂停 X 秒钟, X 是一个随机数
+	pauseTime := commontool.RandInt64(2, 7)
+	log.Infof("Sleep %d seconds before request next URL: %s", url)
+	time.Sleep(time.Duration(pauseTime) * time.Second)
 	var resp *http.Response
 	var err error
 	req, _ := http.NewRequest(method, url, nil)
@@ -58,7 +61,7 @@ func (a *AlexaSkill) sendRequest(method, url string, needCookie bool) (*http.Res
 		if err == nil {
 			return resp, nil
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(time.Duration(commontool.RandInt64(2, 6)) * time.Second)
 		log.Warnf("request fail, try times: %d, err: %s", i, err)
 	}
 	log.Errorf("request: %s, error: %s, ", req.URL.Path, err.Error())
@@ -193,22 +196,26 @@ func (a *AlexaSkill) getNextPageURL(doc *goquery.Document) string {
 	return ""
 }
 
-func (a *AlexaSkill) runEngineVersion2() {
+// 大循环+小循环，遍历所有的category的所有items
+func (a *AlexaSkill) runEngineVersion2(cateIndex, pageIndex int) {
 	var currentItemURLs []string
+	var cateName string
 	var content []string
 	var nextPageURL string
 	var flag bool
 	var resp *http.Response
 	var err error
 	var currentPageIndex int
-	for i, categoryURL := range a.categoryURLs {
+	// i, categoryURL := range a.categoryURLs
+	for i := cateIndex; i < len(a.categoryURLs); i++ {
 		currentPageIndex = 1
-		resp, err = a.sendRequest("GET", categoryURL, true)
+		resp, err = a.sendRequest("GET", a.categoryURLs[i], true)
 		if err != nil {
-			log.Errorf("Enter category fail: %s", categoryURL)
+			log.Errorf("Enter category fail: %s", a.categoryURLs[i])
 			continue
 		}
-		log.Infof("进入第 %d 个 Category, URL: %s", i, categoryURL)
+		log.Infof("进入第 %d 个 Category, URL: %s", i, a.categoryURLs[i])
+		cateName = a.categoryName[i]
 		flag = true
 
 		for flag {
@@ -217,12 +224,18 @@ func (a *AlexaSkill) runEngineVersion2() {
 			currentItemURLs, nextPageURL = a.getCurrentPageItems(resp)
 			log.Debugf("current item number: %d", len(currentItemURLs))
 			for _, itemURL := range currentItemURLs {
+				// 如果指定到具体的某一页才开始收集数据， 则忽略掉前面的
+				if pageIndex != 0 && currentPageIndex < pageIndex {
+					break
+				}
+				//
+				pageIndex = 0
 				resp, err = a.sendRequest("GET", itemURL, true)
 				if err != nil {
 					log.Errorf("Enter Item page: %s fail, err: %s", itemURL, err.Error())
 					continue
 				}
-				content = a.getData(a.categoryName[i], itemURL, resp)
+				content = a.getData(cateName, itemURL, resp)
 				writeToResult(content)
 			}
 			// 进入下一页
@@ -231,23 +244,25 @@ func (a *AlexaSkill) runEngineVersion2() {
 				if err != nil {
 					log.Errorf("Enter next page fail: %s, current page is: %d", err.Error(), currentPageIndex)
 				}
+				log.Infof("Category: %s, page index: %d", a.categoryURLs[i], currentPageIndex)
 				currentPageIndex++
 			} else {
 				flag = false
+				log.Infof("No more next page.")
 			}
 		}
 	}
 }
 
 // RunVersion2 hh.
-func RunVersion2(url string, heads map[string]string) {
+func RunVersion2(url string, heads map[string]string, cIndex, pIndex int) {
 	// create a csv file
 	createNewFile("alexaData.csv")
 	defer closeFile()
 
 	inst := newAlexaSkill(heads)
 	inst.getCategoryURLs(url)
-	inst.runEngineVersion2()
+	inst.runEngineVersion2(cIndex, pIndex)
 }
 
 // RunByConcurrentMode hh.
