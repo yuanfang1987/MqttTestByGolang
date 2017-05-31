@@ -46,7 +46,7 @@ func (a *AlexaSkill) addCookies(req *http.Request) {
 func (a *AlexaSkill) sendRequest(method, url string, needCookie bool) (*http.Response, error) {
 	//为了应对反爬虫，在每次发起请求之前，先暂停 X 秒钟, X 是一个随机数
 	pauseTime := commontool.RandInt64(2, 7)
-	log.Infof("Sleep %d seconds before request next URL: %s", url)
+	log.Infof("Sleep %d seconds before request next URL: %s", pauseTime, url)
 	time.Sleep(time.Duration(pauseTime) * time.Second)
 	var resp *http.Response
 	var err error
@@ -86,6 +86,11 @@ func (a *AlexaSkill) getCategoryURLs(url string) {
 
 	li := doc.Find("div.categoryRefinementsSection").Find("ul").Find("li")
 	log.Infof("Found category URL number: %d", li.Length())
+	// if li.Length() == 0 {
+	// 	bd, _ := ioutil.ReadAll(resp.Body)
+	// 	log.Infof("response body content: %s", string(bd))
+	// 	os.Exit(1)
+	// }
 	myFunc := func(index int, sel *goquery.Selection) {
 		// get category urls.
 		href, bl := sel.Find("a").Attr("href")
