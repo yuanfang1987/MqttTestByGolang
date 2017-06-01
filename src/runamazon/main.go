@@ -6,10 +6,11 @@ import (
 	"oceanwing/crawler"
 
 	log "github.com/cihub/seelog"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 // haha.
-func main() {
+func test1() {
 	defer log.Flush()
 	specifiedCateIndex := flag.Int("CateIndex", 0, "category index")
 	specifiedPageIndex := flag.Int("PageIndex", 0, "page index")
@@ -23,4 +24,12 @@ func main() {
 	//heads["Accept-Language"] = "zh-CN,zh;q=0.8"
 	//heads["Connection"] = "keep-alive"
 	crawler.RunVersion2("https://www.amazon.com/b?ie=UTF8&node=13727921011", heads, *specifiedCateIndex, *specifiedPageIndex)
+}
+
+func main() {
+	defer log.Flush()
+	commontool.InitLogInstance("info")
+	crawler.ConnectToDB("root", "oceanwing", "54.223.223.93:3306", "voicetest")
+	//defer crawler.CloseDBConnection()
+	crawler.RunInsertToDB22("AlexaData.xlsx")
 }
