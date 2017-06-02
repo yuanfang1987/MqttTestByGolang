@@ -16,6 +16,10 @@ func RunMusicCases(url string) {
 	Instance.PlayMusic()
 	Instance.GetPlayerStatus("status", "play")
 
+	// debug
+	uri := Instance.GetPlayerStatusValue("uri")
+	log.Infof("current music uri: %s", uri)
+
 	// play prev
 	log.Info("start play previous song")
 	Instance.PlayPrev()

@@ -101,3 +101,15 @@ func (b *BaseEufyGenie) SetPlayMode(mod string) {
 	results.WriteToResultFile(categoryMusic, "set play mode to "+mod, re)
 	log.Infof("set play mode OK? ---> %s", re)
 }
+
+// GetPlayerStatusValue hh.
+func (b *BaseEufyGenie) GetPlayerStatusValue(key string) string {
+	b.sendGet("/httpapi.asp?command=getPlayerStatus")
+	log.Info("execute get music play status.")
+	myJSON := b.convertJSON()
+	iuri, err := myJSON.Get(key).String()
+	if err == nil {
+		return hexToString(iuri)
+	}
+	return ""
+}

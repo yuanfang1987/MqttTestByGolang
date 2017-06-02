@@ -16,5 +16,5 @@ func main() {
 	defer results.CloseResultFile()
 
 	cases.RunMusicCases("http://10.10.10.254")
-	cases.RunWifiCases("http://10.10.10.254", "OceanwingMobile", "0ceanwing11")
+	//cases.RunWifiCases("http://10.10.10.254", "OceanwingMobile", "0ceanwing11")
 }
