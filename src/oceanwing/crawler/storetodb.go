@@ -46,7 +46,7 @@ func insertValueToDB(category, skillname, command, url, stars, reviews string) {
 	}
 }
 
-// RunInsertToDB22 hh.
+// RunInsertToDB22 把excel文件的数据插入到数据库
 func RunInsertToDB22(fpath string) {
 	xFile, err := xlsx.OpenFile(fpath)
 	if err != nil {
