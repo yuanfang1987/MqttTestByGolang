@@ -6,6 +6,7 @@ import (
 	"os/exec"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/tealeg/xlsx"
 )
 
 func execShell() {
@@ -42,4 +43,20 @@ func mygoquery() {
 		fmt.Printf("App URL: %s\n", href)
 	}
 	li.Each(myfunc)
+}
+
+func myExcel(fPath string) {
+	xFile, err := xlsx.OpenFile(fPath)
+	if err != nil {
+		fmt.Printf("open xlsx file error :%s\n", err.Error())
+		return
+	}
+	for _, sheet := range xFile.Sheets {
+		for _, row := range sheet.Rows {
+			for _, cell := range row.Cells {
+				text, _ := cell.String()
+				fmt.Printf("value: %s\n", text)
+			}
+		}
+	}
 }
