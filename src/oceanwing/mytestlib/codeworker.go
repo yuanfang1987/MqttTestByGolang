@@ -33,7 +33,7 @@ func mygoquery() {
 		fmt.Printf("parse to goquery error: %s", err.Error())
 		return
 	}
-	li := doc.Find("div.categoryRefinementsSection").Find("ul").Find("li")
+	li := doc.Find("div.categoryRefinementsSection").Find("li")
 	fmt.Printf("li length: %d\n", li.Length())
 	myfunc := func(i int, s *goquery.Selection) {
 		href, _ := s.Find("a").Attr("href")
