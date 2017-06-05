@@ -15,6 +15,6 @@ func main() {
 	results.NewResultFile("./eufyGenieTestResult.csv")
 	defer results.CloseResultFile()
 
-	cases.RunMusicCases("http://10.10.10.254")
-	//cases.RunWifiCases("http://10.10.10.254", "OceanwingMobile", "0ceanwing11")
+	//cases.RunMusicCases("http://10.10.10.254")
+	cases.RunWifiCases("http://10.10.10.254", "Testing", "Testing2017")
 }
