@@ -41,6 +41,7 @@ func main() {
 	// 初始日志实例
 	commontool.InitLogInstance(config.GetString(config.LogLevel))
 
+	log.Info("=========================== Starting a new robot cleaner functional testing =========================")
 	log.Infof("broker: %s", broker)
 	log.Infof("interval: %d", interval)
 	log.Infof("device key: %s", devKeys)
