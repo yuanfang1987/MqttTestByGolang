@@ -348,11 +348,8 @@ func (robot *littleRobot) handleIncomingMsg() {
 						log.Errorf("警告! ErrorCode: %d, device key: %s", heartBeatInfo[12], robot.devKEY)
 					}
 
-					//水箱状态
-					// log.Infof("水箱状态:  %d", heartBeatInfo[6])
-
-					// 如果电量在20%以下且workmode不等于3,则让机器人返回充电
-					if heartBeatInfo[10] <= 20 {
+					// 如果电量在20%以下且workmode不等于3(充电中)，也不等于240(休眠),则让机器人返回充电
+					if heartBeatInfo[10] <= 20 && heartBeatInfo[1] != 240 {
 						robot.charging = true
 						if heartBeatInfo[1] != 3 {
 							robot.returnCharge = true

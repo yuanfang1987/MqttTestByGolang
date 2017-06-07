@@ -1,6 +1,12 @@
 // 这是一个 robot-functional-test 分支，
 // 仅用于对扫地机器人的功能稳定性测试
 
+/*   更新日志
+2017.06.07,
+
+
+*/
+
 package main
 
 import (
