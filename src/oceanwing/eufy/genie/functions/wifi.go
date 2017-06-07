@@ -71,7 +71,11 @@ func (b *BaseEufyGenie) ConnectWifi(wifiName, password string) {
 	for _, wifi := range myWifi.Aplist {
 		if hexToString(wifi.SSID) == wifiName {
 			log.Infof("get matched wifi: %s", wifiName)
+			log.Infof("Wifi channel: %s", wifi.Channel)
+			log.Infof("Wifi auth: %s", wifi.Auth)
+			log.Infof("wifi encry: %s", wifi.Encry)
 			matchWifi = wifi
+			break
 		}
 	}
 	if matchWifi == nil {

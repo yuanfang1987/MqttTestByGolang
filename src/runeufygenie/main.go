@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"oceanwing/commontool"
 	"oceanwing/eufy/genie/cases"
 	"oceanwing/eufy/genie/results"
@@ -9,6 +10,9 @@ import (
 )
 
 func main() {
+	ssid := flag.String("ssid", "", "ssid")
+	pwd := flag.String("pwd", "", "password")
+	flag.Parse()
 	commontool.InitLogInstance("debug")
 	defer log.Flush()
 
@@ -16,5 +20,5 @@ func main() {
 	defer results.CloseResultFile()
 
 	//cases.RunMusicCases("http://10.10.10.254")
-	cases.RunWifiCases("http://10.10.10.254", "Testing", "Testing2017")
+	cases.RunWifiCases("http://10.10.10.254", *ssid, *pwd)
 }

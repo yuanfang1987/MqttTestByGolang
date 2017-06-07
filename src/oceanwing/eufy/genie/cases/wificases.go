@@ -14,6 +14,13 @@ func RunWifiCases(url, wifi, pwd string) {
 
 	//Instance.ConnectToHideWifi(wifi, pwd)
 
-	Instance.SetHideSSID("1")
-	Instance.SetHideSSID("0")
+	//Instance.SetHideSSID("1")
+	//Instance.SetHideSSID("0")
+}
+
+// RunConnectToHideWIFI hh.
+func RunConnectToHideWIFI(url, wifi, pwd string) {
+	log.Info("===== Runing connecting hide wifi =======")
+	newTestInstance(url)
+	Instance.ConnectToHideWifi(wifi, pwd)
 }
