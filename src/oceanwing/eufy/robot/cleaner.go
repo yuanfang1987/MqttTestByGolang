@@ -9,6 +9,17 @@ import (
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 )
 
+const (
+	pause       byte = 0
+	spot        byte = 1
+	auto        byte = 2
+	charge      byte = 3
+	edge        byte = 4
+	smallRoom   byte = 5
+	strongSpeed byte = 1
+	dailySpeed  byte = 0
+)
+
 var eufyServerInstance *EufyServer
 
 // EufyServer 用于模拟从Server端Publish消息给机器人
@@ -339,18 +350,7 @@ func (robot *littleRobot) recordTestResult(passed bool) {
 }
 
 // 用于判断机器人自动执行的后续动作
-func (robot *littleRobot) assertNextActionResp(index int) {
-	var expValue byte
-	switch index {
-	case 1:
-		expValue = 1
-	case 5:
-		expValue = 4
-	case 6:
-		expValue = 5
-	case 3:
-		expValue = 2
-	}
+func (robot *littleRobot) assertNextActionResp(expValue byte) {
 	for i := 0; i < 3; i++ {
 		if robot.responseMode == expValue {
 			log.Infof("robot next action response is %d, Passed.", expValue)
@@ -369,56 +369,56 @@ func getCommandToDevice(index int, rb *littleRobot) []byte {
 	case 1:
 		// 定点 0x01, ok
 		rb.expResultIndex = 1
-		rb.expResultValue = 1
+		rb.expResultValue = spot
 		rb.testPurpose = "设置工作模式为：定点"
 		rb.testCaseNum = 1
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x01, 0xE2, 0xFA}
 	case 2:
 		//强力 0x01
 		rb.expResultIndex = 8
-		rb.expResultValue = 1
+		rb.expResultValue = strongSpeed
 		rb.testPurpose = "设置速度为：强力"
 		rb.testCaseNum = 2
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE8, 0x01, 0xE9, 0xFA}
 	case 3:
 		// 自动 0x02, ok
 		rb.expResultIndex = 1
-		rb.expResultValue = 2
+		rb.expResultValue = auto
 		rb.testPurpose = "设置工作模式为：自动"
 		rb.testCaseNum = 3
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x02, 0xE3, 0xFA}
 	case 4:
 		// 返回充电 0x03, ok
 		rb.expResultIndex = 1
-		rb.expResultValue = 3
+		rb.expResultValue = charge
 		rb.testPurpose = "设置工作模式为：返回充电"
 		rb.testCaseNum = 4
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x03, 0xE4, 0xFA}
 	case 5:
 		// 沿边 0x04, ok
 		rb.expResultIndex = 1
-		rb.expResultValue = 4
+		rb.expResultValue = edge
 		rb.testPurpose = "设置工作模式为：沿边"
 		rb.testCaseNum = 5
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x04, 0xE5, 0xFA}
 	case 6:
-		//精扫 0x05
+		//小房间 0x05
 		rb.expResultIndex = 1
-		rb.expResultValue = 5
-		rb.testPurpose = "设置工作模式为：精扫"
+		rb.expResultValue = smallRoom
+		rb.testPurpose = "设置工作模式为：小房间"
 		rb.testCaseNum = 6
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x05, 0xE6, 0xFA}
 	case 7:
 		//日常 0x00
 		rb.expResultIndex = 8
-		rb.expResultValue = 0
+		rb.expResultValue = dailySpeed
 		rb.testPurpose = "设置速度为：日常"
 		rb.testCaseNum = 7
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE8, 0x00, 0xE8, 0xFA}
 	case 8:
 		// 暂停 0x00, ok
 		rb.expResultIndex = 1
-		rb.expResultValue = 0
+		rb.expResultValue = pause
 		rb.testPurpose = "设置工作模式为：暂停"
 		rb.testCaseNum = 8
 		return []byte{0x00, 0x00, 0x00, 0xA5, 0xE1, 0x00, 0xE1, 0xFA}
@@ -455,6 +455,7 @@ func (r *EufyServer) RunTestType2() {
 
 	var robot *littleRobot
 	var reSetFlag bool
+	var nextActResp byte
 	// 如果有两个机器，则用第2个来跑， 否则用第1个
 	if len(r.littleRobots) > 2 {
 		robot = r.littleRobots[1]
@@ -471,25 +472,29 @@ func (r *EufyServer) RunTestType2() {
 			r.MqttClient.PublishMessage(getCommandToDevice(index, robot))
 			switch index {
 			case 1:
-				robot.testType2Mode = 1
+				robot.testType2Mode = spot
 				reSetFlag = myTimer.Reset(2 * time.Minute)
 				log.Infof("reset timer to 2 minutes ---> %t", reSetFlag)
 				index = 5
+				nextActResp = pause
 			case 5:
-				robot.testType2Mode = 5
+				robot.testType2Mode = edge
 				reSetFlag = myTimer.Reset(20 * time.Minute)
 				log.Infof("reset timer to 20 minutes ---> %t", reSetFlag)
 				index = 6
+				nextActResp = charge
 			case 6:
-				robot.testType2Mode = 6
+				robot.testType2Mode = smallRoom
 				reSetFlag = myTimer.Reset(30 * time.Minute)
 				log.Infof("reset timer to 30 minutes ---> %t", reSetFlag)
 				index = 3
+				nextActResp = charge
 			case 3:
-				robot.testType2Mode = 3
+				robot.testType2Mode = auto
 				reSetFlag = myTimer.Reset(100 * time.Minute)
 				log.Infof("reset timer to 100 minutes ---> %t", reSetFlag)
 				index = 1
+				nextActResp = charge
 			}
 			// 等待一个指定的时间, spot 等待2分钟；edge等待20分钟；small room等待30分钟；auto等待100分钟
 			if reSetFlag {
@@ -498,7 +503,7 @@ func (r *EufyServer) RunTestType2() {
 			// reset
 			robot.testType2Mode = 99
 			// 等待时间结束后，判断机器人是原地暂停，还是返回充电
-			robot.assertNextActionResp(index)
+			robot.assertNextActionResp(nextActResp)
 		} else if robot.returnCharge {
 			// 返回充电
 			r.MqttClient.PublishMessage(getCommandToDevice(4, robot))
