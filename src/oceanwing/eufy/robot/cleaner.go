@@ -450,7 +450,7 @@ func ShowSummaryResult() {
 
 // RunTestType2 hh.
 func (r *EufyServer) RunTestType2() {
-	myTimer := time.NewTimer(10 * time.Millisecond)
+	myTimer := time.NewTimer(2 * time.Second)
 	<-myTimer.C
 
 	var robot *littleRobot
