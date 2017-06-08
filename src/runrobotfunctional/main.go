@@ -49,6 +49,8 @@ func main() {
 		capath := config.GetString(config.MqttCAFile)
 		commontool.BuildTlSConfig(capath)
 	}
+	// get run mode
+	runMode := config.GetString(config.RobotCleanerRunMode)
 
 	// run test.
 	for i := 0; i < 1; i++ {
@@ -71,12 +73,16 @@ func main() {
 			}
 			// run mqtt service
 			eufyServer.RunMqtt(clientIDUserName, clientIDUserName, password, broker, needca)
-			//timer.
-			heartBeatInterval := time.NewTicker(time.Second * time.Duration(interval)).C
-			for {
-				select {
-				case <-heartBeatInterval:
-					eufyServer.PublishMsgToAllRobot()
+			if runMode == "OnlyType2" {
+				eufyServer.RunTestType2()
+			} else {
+				//timer.
+				heartBeatInterval := time.NewTicker(time.Second * time.Duration(interval)).C
+				for {
+					select {
+					case <-heartBeatInterval:
+						eufyServer.PublishMsgToAllRobot()
+					}
 				}
 			}
 		}()

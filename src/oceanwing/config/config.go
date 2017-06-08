@@ -26,6 +26,7 @@ const (
 	AnkerBoxCommandFile     = "ankerbox.command_file"
 	AnkerBoxClientNum       = "ankerbox.client_num"
 
+	RobotCleanerRunMode           = "robotcleaner.runMode"
 	RobotcleanerHeartBeatInterval = "robotcleaner.heart_beat_interval"
 	RobotcleanerTestDataFile      = "robotcleaner.test_data_file"
 	RobotcleanerDeviceKey         = "robotcleaner.deviceKey"

@@ -3,6 +3,8 @@ package robot
 import (
 	"oceanwing/mqttclient"
 
+	"time"
+
 	log "github.com/cihub/seelog"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 )
@@ -149,6 +151,7 @@ type littleRobot struct {
 	devID             string
 	pubTopicl         string
 	subTopicl         string
+	testType          int
 	Incoming          chan []byte
 	charging          bool
 	returnCharge      bool
@@ -178,6 +181,8 @@ type littleRobot struct {
 	speedDailyFailed  int
 	turnOnFindMe      int
 	turnOffFindMe     int
+	testType2Mode     byte
+	responseMode      byte
 }
 
 func (robot *littleRobot) handleIncomingMsg() {
@@ -265,6 +270,15 @@ func (robot *littleRobot) handleIncomingMsg() {
 							robot.testPurpose = ""
 						}
 					}
+
+					robot.responseMode = heartBeatInfo[1]
+
+					// 如果 testType = 2, 则需额外判断
+					if robot.testType == 2 && robot.testType2Mode != 99 {
+						if robot.testType2Mode != heartBeatInfo[1] {
+							log.Infof("robot [%s] current running mode should be %d, but actual is %d", robot.devKEY, robot.testType2Mode, heartBeatInfo[1])
+						}
+					}
 				}
 			}
 		}
@@ -322,6 +336,29 @@ func (robot *littleRobot) recordTestResult(passed bool) {
 			robot.pauseFailed++
 		}
 	}
+}
+
+// 用于判断机器人自动执行的后续动作
+func (robot *littleRobot) assertNextActionResp(index int) {
+	var expValue byte
+	switch index {
+	case 1:
+		expValue = 1
+	case 5:
+		expValue = 4
+	case 6:
+		expValue = 5
+	case 3:
+		expValue = 2
+	}
+	for i := 0; i < 3; i++ {
+		if robot.responseMode == expValue {
+			log.Infof("robot next action response is %d, Passed.", expValue)
+			return
+		}
+		time.Sleep(20 * time.Second)
+	}
+	log.Infof("robot next action response is %d, but %d is expected, Failed.", robot.responseMode, expValue)
 }
 
 func getCommandToDevice(index int, rb *littleRobot) []byte {
@@ -407,4 +444,72 @@ func getCommandToDevice(index int, rb *littleRobot) []byte {
 func ShowSummaryResult() {
 	log.Info("测试结束")
 	eufyServerInstance.showTestResult()
+}
+
+// =================================================================================
+
+// RunTestType2 hh.
+func (r *EufyServer) RunTestType2() {
+	myTimer := time.NewTimer(10 * time.Millisecond)
+	<-myTimer.C
+
+	var robot *littleRobot
+	var reSetFlag bool
+	// 如果有两个机器，则用第2个来跑， 否则用第1个
+	if len(r.littleRobots) > 2 {
+		robot = r.littleRobots[1]
+	} else if len(r.littleRobots) == 1 {
+		robot = r.littleRobots[0]
+	}
+	robot.testType = 2
+	robot.testType2Mode = 99
+	// 1, spot; 5, edge; 6, small room; 3, auto
+	index := 1
+	for {
+		if !robot.charging {
+			log.Infof("Current command index is %d", index)
+			r.MqttClient.PublishMessage(getCommandToDevice(index, robot))
+			switch index {
+			case 1:
+				robot.testType2Mode = 1
+				reSetFlag = myTimer.Reset(2 * time.Minute)
+				log.Infof("reset timer to 2 minutes ---> %t", reSetFlag)
+				index = 5
+			case 5:
+				robot.testType2Mode = 5
+				reSetFlag = myTimer.Reset(20 * time.Minute)
+				log.Infof("reset timer to 20 minutes ---> %t", reSetFlag)
+				index = 6
+			case 6:
+				robot.testType2Mode = 6
+				reSetFlag = myTimer.Reset(30 * time.Minute)
+				log.Infof("reset timer to 30 minutes ---> %t", reSetFlag)
+				index = 3
+			case 3:
+				robot.testType2Mode = 3
+				reSetFlag = myTimer.Reset(100 * time.Minute)
+				log.Infof("reset timer to 100 minutes ---> %t", reSetFlag)
+				index = 1
+			}
+			// 等待一个指定的时间, spot 等待2分钟；edge等待20分钟；small room等待30分钟；auto等待100分钟
+			if reSetFlag {
+				<-myTimer.C
+			}
+			// reset
+			robot.testType2Mode = 99
+			// 等待时间结束后，判断机器人是原地暂停，还是返回充电
+			robot.assertNextActionResp(index)
+		} else if robot.returnCharge {
+			// 返回充电
+			r.MqttClient.PublishMessage(getCommandToDevice(4, robot))
+		} else {
+			// 防止太过于频繁的写入日志，此处等待30秒
+			reSetFlag = myTimer.Reset(30 * time.Second)
+			if reSetFlag {
+				<-myTimer.C
+			}
+			log.Infof("机器 [%s] 正在充电中......, 现在不发任何指令.", robot.devKEY)
+		}
+
+	}
 }
