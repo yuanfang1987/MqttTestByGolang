@@ -128,18 +128,18 @@ func (r *EufyServer) PublishMsgToAllRobot() {
 func (r *EufyServer) showTestResult() {
 	for _, rb := range r.littleRobots {
 		log.Infof("=========== Summary Result For Robot: %s ===========", rb.devKEY)
-		log.Infof("robot: %s 发出指令总数: %d", rb.devKEY, rb.totalCMD)
-		log.Infof("robot: %s 收到心跳总数: %d", rb.devKEY, rb.heartBeatCount)
-		log.Infof("robot: %s 执行暂停指令，成功: %d, 失败: %d, 总计: %d", rb.devKEY, rb.pausePassed, rb.pauseFailed, rb.pausePassed+rb.pauseFailed)
-		log.Infof("robot: %s 执行定点指令，成功: %d, 失败：%d, 总计: %d", rb.devKEY, rb.spotPassed, rb.spotFailed, rb.spotPassed+rb.spotFailed)
-		log.Infof("robot: %s 执行自动指令，成功: %d, 失败：%d, 总计: %d", rb.devKEY, rb.autoPassed, rb.autoFailed, rb.autoPassed+rb.autoFailed)
-		log.Infof("robot: %s 执行返回充电指令，成功: %d, 失败：%d, 总计: %d", rb.devKEY, rb.chargePassed, rb.chargeFailed, rb.chargePassed+rb.chargeFailed)
-		log.Infof("robot: %s 执行沿边指令，成功: %d, 失败：%d, 总计: %d", rb.devKEY, rb.edgePassed, rb.edgeFailed, rb.edgePassed+rb.edgeFailed)
-		log.Infof("robot: %s 执行精扫(小房间)指令，成功: %d, 失败：%d, 总计: %d", rb.devKEY, rb.smallRoomPassed, rb.smallRoomFailed, rb.smallRoomPassed+rb.smallRoomFailed)
-		log.Infof("robot: %s 执行设置日常速度指令，成功: %d, 失败：%d, 总计: %d", rb.devKEY, rb.speedDailyPassed, rb.speedDailyFailed, rb.speedDailyPassed+rb.speedDailyFailed)
-		log.Infof("robot: %s 执行设置强力速度指令，成功: %d, 失败：%d, 总计: %d", rb.devKEY, rb.speedStrongPassed, rb.speedStrongFailed, rb.speedStrongPassed+rb.speedStrongFailed)
-		log.Infof("robot: %s 执行打开FindMe次数：%d", rb.devKEY, rb.turnOnFindMe)
-		log.Infof("robot: %s 执行关闭FindMe次数：%d", rb.devKEY, rb.turnOffFindMe)
+		log.Infof("robot\t%s\t发出指令总数\t%d", rb.devKEY, rb.totalCMD)
+		log.Infof("robot\t%s\t收到心跳总数\t%d", rb.devKEY, rb.heartBeatCount)
+		log.Infof("robot\t%s\t执行暂停指令\t成功\t%d\t失败\t%d\t总计\t%d", rb.devKEY, rb.pausePassed, rb.pauseFailed, rb.pausePassed+rb.pauseFailed)
+		log.Infof("robot\t%s\t执行定点指令\t成功\t%d\t失败\t%d\t总计\t%d", rb.devKEY, rb.spotPassed, rb.spotFailed, rb.spotPassed+rb.spotFailed)
+		log.Infof("robot\t%s\t执行自动指令\t成功\t%d\t失败\t%d\t总计\t%d", rb.devKEY, rb.autoPassed, rb.autoFailed, rb.autoPassed+rb.autoFailed)
+		log.Infof("robot\t%s\t执行返回充电指令\t成功\t%d\t失败\t%d\t总计\t%d", rb.devKEY, rb.chargePassed, rb.chargeFailed, rb.chargePassed+rb.chargeFailed)
+		log.Infof("robot\t%s\t执行沿边指令\t成功\t%d\t失败\t%d\t总计\t%d", rb.devKEY, rb.edgePassed, rb.edgeFailed, rb.edgePassed+rb.edgeFailed)
+		log.Infof("robot\t%s\t执行精扫(小房间)指令\t成功\t%d\t失败\t%d\t总计\t%d", rb.devKEY, rb.smallRoomPassed, rb.smallRoomFailed, rb.smallRoomPassed+rb.smallRoomFailed)
+		log.Infof("robot\t%s\t执行设置日常速度指令\t成功\t%d\t失败\t%d\t总计\t%d", rb.devKEY, rb.speedDailyPassed, rb.speedDailyFailed, rb.speedDailyPassed+rb.speedDailyFailed)
+		log.Infof("robot\t%s\t执行设置强力速度指令\t成功\t%d\t失败\t%d\t总计\t%d", rb.devKEY, rb.speedStrongPassed, rb.speedStrongFailed, rb.speedStrongPassed+rb.speedStrongFailed)
+		log.Infof("robot\t%s\t执行打开FindMe次数\t%d", rb.devKEY, rb.turnOnFindMe)
+		log.Infof("robot\t%s\t执行关闭FindMe次数\t%d", rb.devKEY, rb.turnOffFindMe)
 	}
 }
 
