@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -72,6 +73,9 @@ func Test_readdir(t *testing.T) {
 	// and old file and write to new file
 	for i, f := range fileList {
 		fmt.Printf("index: %d, file name: %s\n", i, f.Name())
+		if !strings.Contains(f.Name(), ".gps") {
+			continue
+		}
 		fContents, readErr = ReadFileContent("D:/temp/golangTemp/GPS/" + f.Name())
 		if readErr != nil {
 			continue
