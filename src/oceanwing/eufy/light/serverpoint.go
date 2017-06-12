@@ -58,6 +58,7 @@ func (s *MqttServerPoint) RunMqttService(clientid, username, pwd, broker string,
 	s.MqttClient.ConnectToBroker()
 }
 
+// 分发订阅到的消息给对应的light去处理
 func (s *MqttServerPoint) distributeMsg(t string, payload []byte) {
 	for _, light := range s.lighters {
 		if t == light.subTopicl {
@@ -78,8 +79,8 @@ func (s *MqttServerPoint) PublishMsgToLight() {
 	for _, light := range s.lighters {
 		s.PubTopic = light.pubTopicl
 		sessionid := rand.Int31n(math.MaxInt32)
-		brightness := uint32(commontool.RandInt64(10, 80))
-		color := uint32(commontool.RandInt64(10, 80))
+		brightness := uint32(commontool.RandInt64(0, 100))
+		color := uint32(commontool.RandInt64(0, 100))
 		payload := buildSetLightDataMsg(sessionid, brightness, color)
 		s.MqttClient.PublishMessage(payload)
 	}
