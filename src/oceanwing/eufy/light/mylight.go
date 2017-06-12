@@ -17,6 +17,7 @@ type lightProd struct {
 
 func (l *lightProd) handleIncomingMsg() {
 	go func() {
+		log.Debugf("Running handleIncomingMsg function for device: %s", l.devKEY)
 		for {
 			select {
 			case msg := <-l.Incoming:

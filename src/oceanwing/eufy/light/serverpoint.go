@@ -3,6 +3,7 @@ package light
 import (
 	"math"
 	"math/rand"
+	"oceanwing/commontool"
 	"oceanwing/mqttclient"
 
 	log "github.com/cihub/seelog"
@@ -36,6 +37,7 @@ func (s *MqttServerPoint) SetupRunningLights(keys []string) {
 			subTopicl: "DEVICE/T1012/" + key + "/PUH_MESSAGE",
 			Incoming:  make(chan []byte),
 		}
+		log.Debugf("Set up a device successfully: %s", key)
 		light.handleIncomingMsg()
 		s.lighters = append(s.lighters, light)
 	}
@@ -47,6 +49,7 @@ func (s *MqttServerPoint) RunMqttService(clientid, username, pwd, broker string,
 	s.Username = username
 	s.Pwd = pwd
 	s.Broker = broker
+	s.SubTopic = "DEVICE/T1012/+/PUH_MESSAGE"
 	s.NeedCA = ca
 	s.SubHandler = func(c MQTT.Client, msg MQTT.Message) {
 		go s.distributeMsg(msg.Topic(), msg.Payload())
@@ -58,6 +61,7 @@ func (s *MqttServerPoint) RunMqttService(clientid, username, pwd, broker string,
 func (s *MqttServerPoint) distributeMsg(t string, payload []byte) {
 	for _, light := range s.lighters {
 		if t == light.subTopicl {
+			log.Debugf("send incoming message to device: %s", light.devKEY)
 			light.Incoming <- payload
 			return
 		}
@@ -74,7 +78,9 @@ func (s *MqttServerPoint) PublishMsgToLight() {
 	for _, light := range s.lighters {
 		s.PubTopic = light.pubTopicl
 		sessionid := rand.Int31n(math.MaxInt32)
-		payload := buildSetLightDataMsg(sessionid, 60, 70)
+		brightness := uint32(commontool.RandInt64(10, 80))
+		color := uint32(commontool.RandInt64(10, 80))
+		payload := buildSetLightDataMsg(sessionid, brightness, color)
 		s.MqttClient.PublishMessage(payload)
 	}
 }
