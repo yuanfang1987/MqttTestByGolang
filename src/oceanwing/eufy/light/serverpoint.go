@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"oceanwing/commontool"
 	"oceanwing/mqttclient"
+	"strings"
 
 	log "github.com/cihub/seelog"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
@@ -31,8 +32,12 @@ func NewMqttServerPoint() *MqttServerPoint {
 // SetupRunningLights 设置需要控制的灯泡数量
 func (s *MqttServerPoint) SetupRunningLights(keys []string) {
 	for _, key := range keys {
+		codeAndKey := strings.Split(key, ":")
 		light := &lightProd{
-			devKEY:    key,
+			prodCode:  codeAndKey[0],
+			devKEY:    codeAndKey[1],
+			mode:      0, // 默认模式
+			status:    1, //默认开灯
 			pubTopicl: "DEVICE/T1012/" + key + "/SUB_MESSAGE",
 			subTopicl: "DEVICE/T1012/" + key + "/PUH_MESSAGE",
 			Incoming:  make(chan []byte),
@@ -81,7 +86,7 @@ func (s *MqttServerPoint) PublishMsgToLight() {
 		sessionid := rand.Int31n(math.MaxInt32)
 		brightness := uint32(commontool.RandInt64(0, 100))
 		color := uint32(commontool.RandInt64(0, 100))
-		payload := buildSetLightDataMsg(sessionid, brightness, color)
+		payload := light.buildSetLightDataMsg(sessionid, brightness, color)
 		s.MqttClient.PublishMessage(payload)
 	}
 }
