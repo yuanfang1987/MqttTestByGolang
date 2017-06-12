@@ -10,10 +10,9 @@ package main
 import (
 	"oceanwing/commontool"
 	"oceanwing/config"
-	"oceanwing/eufy/robot"
+	"oceanwing/eufy/light"
 	"os"
 	"os/signal"
-	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -23,18 +22,17 @@ import (
 
 func main() {
 	defer log.Flush()
-	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// Initialize instance.
 	config.Initialize("config.yaml")
 
+	// get parameter form config.yaml file
 	clientIDUserName := config.GetString(config.MqttauthUserName)
 	password := config.GetString(config.MqttauthPassword)
 	broker := config.GetString(config.MqttBroker)
 	needca := config.GetBool(config.MqttNeedCA)
 	devKeys := config.GetString(config.RobotcleanerDeviceKey)
 	interval := config.GetInt(config.RobotcleanerHeartBeatInterval)
-	appUserRunflag := config.GetBool(config.AppuserRunFlag)
 
 	// 初始日志实例
 	commontool.InitLogInstance(config.GetString(config.LogLevel))
@@ -49,49 +47,30 @@ func main() {
 		capath := config.GetString(config.MqttCAFile)
 		commontool.BuildTlSConfig(capath)
 	}
-	// get run mode
-	runMode := config.GetString(config.RobotCleanerRunMode)
 
 	// run test.
 	for i := 0; i < 1; i++ {
 		go func() {
 			// create a new cleaner
-			eufyServer := robot.NewEufyServer()
-			allRobots := strings.Split(devKeys, ",")
-			eufyServer.SetupRunningRobots(allRobots)
-			// 模拟App用户
-			if appUserRunflag {
-				cid := config.GetString(config.AppuserClientid)
-				csecret := config.GetString(config.AppuserClientscret)
-				email := config.GetString(config.AppuserEmail)
-				pwd := config.GetString(config.AppuserPassword)
-				userDevKey := config.GetString(config.AppuserDevKey)
-				userDeviceID := config.GetString(config.AppuserDevID)
-				// user login
-				eufyServer.SetAppUser(cid, csecret, email, pwd)
-				eufyServer.AddRunningRobot(userDevKey, userDeviceID)
-			}
+			eufyServer := light.NewMqttServerPoint()
+			allLights := strings.Split(devKeys, ",")
+			eufyServer.SetupRunningLights(allLights)
 			// run mqtt service
-			eufyServer.RunMqtt(clientIDUserName, clientIDUserName, password, broker, needca)
-			if runMode == "OnlyType2" {
-				eufyServer.RunTestType2()
-			} else {
-				//timer.
-				heartBeatInterval := time.NewTicker(time.Second * time.Duration(interval)).C
-				for {
-					select {
-					case <-heartBeatInterval:
-						eufyServer.PublishMsgToAllRobot()
-					}
+			eufyServer.RunMqttService(clientIDUserName, clientIDUserName, password, broker, needca)
+			//timer.
+			heartBeatInterval := time.NewTicker(time.Second * time.Duration(interval)).C
+			for {
+				select {
+				case <-heartBeatInterval:
+					eufyServer.PublishMsgToLight()
 				}
 			}
 		}()
-		log.Infof("RobotCleaner Functional Testing Running...%d", i+1)
+		log.Infof("Light Functional Testing Running...%d", i+1)
 	}
 
 	channelSignal := make(chan os.Signal)
 	signal.Notify(channelSignal, os.Interrupt)
 	signal.Notify(channelSignal, syscall.SIGTERM)
 	<-channelSignal
-	robot.ShowSummaryResult()
 }

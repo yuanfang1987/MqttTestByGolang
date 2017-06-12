@@ -1,0 +1,80 @@
+package light
+
+import (
+	"math"
+	"math/rand"
+	"oceanwing/mqttclient"
+
+	log "github.com/cihub/seelog"
+	MQTT "github.com/eclipse/paho.mqtt.golang"
+)
+
+var (
+	servPointInstance *MqttServerPoint
+)
+
+// MqttServerPoint 用于模拟从服务器下发指令给灯泡
+type MqttServerPoint struct {
+	mqttclient.MqttClient
+	lighters []*lightProd
+}
+
+// NewMqttServerPoint 新建一个 MqttServerPoint实例
+func NewMqttServerPoint() *MqttServerPoint {
+	if servPointInstance == nil {
+		servPointInstance = &MqttServerPoint{}
+	}
+	return servPointInstance
+}
+
+// SetupRunningLights 设置需要控制的灯泡数量
+func (s *MqttServerPoint) SetupRunningLights(keys []string) {
+	for _, key := range keys {
+		light := &lightProd{
+			devKEY:    key,
+			pubTopicl: "DEVICE/T1012/" + key + "/SUB_MESSAGE",
+			subTopicl: "DEVICE/T1012/" + key + "/PUH_MESSAGE",
+			Incoming:  make(chan []byte),
+		}
+		light.handleIncomingMsg()
+		s.lighters = append(s.lighters, light)
+	}
+}
+
+// RunMqttService hh.
+func (s *MqttServerPoint) RunMqttService(clientid, username, pwd, broker string, ca bool) {
+	s.Clientid = clientid
+	s.Username = username
+	s.Pwd = pwd
+	s.Broker = broker
+	s.NeedCA = ca
+	s.SubHandler = func(c MQTT.Client, msg MQTT.Message) {
+		go s.distributeMsg(msg.Topic(), msg.Payload())
+	}
+	// connect to broker
+	s.MqttClient.ConnectToBroker()
+}
+
+func (s *MqttServerPoint) distributeMsg(t string, payload []byte) {
+	for _, light := range s.lighters {
+		if t == light.subTopicl {
+			light.Incoming <- payload
+			return
+		}
+	}
+}
+
+// PublishMsgToLight 发指令给灯泡
+func (s *MqttServerPoint) PublishMsgToLight() {
+	if len(s.lighters) == 0 {
+		log.Error("No lights found.")
+		return
+	}
+
+	for _, light := range s.lighters {
+		s.PubTopic = light.pubTopicl
+		sessionid := rand.Int31n(math.MaxInt32)
+		payload := buildSetLightDataMsg(sessionid, 60, 70)
+		s.MqttClient.PublishMessage(payload)
+	}
+}
