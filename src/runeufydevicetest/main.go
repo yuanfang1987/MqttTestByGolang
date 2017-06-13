@@ -10,7 +10,7 @@ package main
 import (
 	"oceanwing/commontool"
 	"oceanwing/config"
-	"oceanwing/eufy/light"
+	"oceanwing/eufy/serverpoint"
 	"os"
 	"os/signal"
 	"strings"
@@ -48,13 +48,11 @@ func main() {
 		commontool.BuildTlSConfig(capath)
 	}
 
-	// run test.
-	//for i := 0; i < 1; i++ {
 	go func() {
 		// create a new cleaner
-		eufyServer := light.NewMqttServerPoint()
-		allLights := strings.Split(codeKeys, ",")
-		eufyServer.SetupRunningLights(allLights)
+		eufyServer := serverpoint.NewMqttServerPoint()
+		allDevices := strings.Split(codeKeys, ",")
+		eufyServer.SetupRunningDevices(allDevices)
 		// run mqtt service
 		eufyServer.RunMqttService(clientIDUserName, clientIDUserName, password, broker, needca)
 		//timer.
@@ -66,8 +64,6 @@ func main() {
 			}
 		}
 	}()
-	//log.Infof("Light Functional Testing Running...%d", i+1)
-	//}
 
 	channelSignal := make(chan os.Signal)
 	signal.Notify(channelSignal, os.Interrupt)
