@@ -38,11 +38,11 @@ func (s *MqttServerPoint) SetupRunningLights(keys []string) {
 			devKEY:    codeAndKey[1],
 			mode:      0, // 默认模式
 			status:    1, //默认开灯
-			pubTopicl: "DEVICE/T1012/" + key + "/SUB_MESSAGE",
-			subTopicl: "DEVICE/T1012/" + key + "/PUH_MESSAGE",
+			pubTopicl: "DEVICE/T1012/" + codeAndKey[1] + "/SUB_MESSAGE",
+			subTopicl: "DEVICE/T1012/" + codeAndKey[1] + "/PUH_MESSAGE",
 			Incoming:  make(chan []byte),
 		}
-		log.Debugf("Set up a device successfully: %s", key)
+		log.Debugf("Set up a device successfully: %s", codeAndKey[1])
 		light.handleIncomingMsg()
 		s.lighters = append(s.lighters, light)
 	}
@@ -57,17 +57,19 @@ func (s *MqttServerPoint) RunMqttService(clientid, username, pwd, broker string,
 	s.SubTopic = "DEVICE/T1012/+/PUH_MESSAGE"
 	s.NeedCA = ca
 	s.SubHandler = func(c MQTT.Client, msg MQTT.Message) {
-		go s.distributeMsg(msg.Topic(), msg.Payload())
+		go s.distributeMsg(msg)
 	}
 	// connect to broker
 	s.MqttClient.ConnectToBroker()
 }
 
 // 分发订阅到的消息给对应的light去处理
-func (s *MqttServerPoint) distributeMsg(t string, payload []byte) {
+func (s *MqttServerPoint) distributeMsg(message MQTT.Message) {
+	t := message.Topic()
+	payload := message.Payload()
 	for _, light := range s.lighters {
 		if t == light.subTopicl {
-			log.Debugf("send incoming message to device: %s", light.devKEY)
+			log.Debugf("send incoming message to device: %s, message id: %d", light.devKEY, message.MessageID())
 			light.Incoming <- payload
 			return
 		}
@@ -84,7 +86,7 @@ func (s *MqttServerPoint) PublishMsgToLight() {
 	for _, light := range s.lighters {
 		s.PubTopic = light.pubTopicl
 		sessionid := rand.Int31n(math.MaxInt32)
-		brightness := uint32(commontool.RandInt64(0, 100))
+		brightness := uint32(commontool.RandInt64(1, 100))
 		color := uint32(commontool.RandInt64(0, 100))
 		payload := light.buildSetLightDataMsg(sessionid, brightness, color)
 		s.MqttClient.PublishMessage(payload)

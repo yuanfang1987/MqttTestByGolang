@@ -69,41 +69,41 @@ func (l *lightProd) unMarshalHeartBeatMsg(incomingPayload []byte) {
 	deviceMsg := &lightT1012.DeviceMessage{}
 	err := proto.Unmarshal(incomingPayload, deviceMsg)
 	if err != nil {
-		log.Errorf("解析灯泡 %s(%s) 心跳消息失败: %s", l.devKEY, l.prodCode, err)
+		log.Errorf("解析灯泡 %s (%s) 心跳消息失败: %s", l.devKEY, l.prodCode, err)
 		return
 	}
 
 	devBaseInfo := deviceMsg.GetReportDevBaseInfo()
 	if devBaseInfo == nil {
-		log.Errorf("提取灯泡 %s(%s) 基础信息失败", l.devKEY, l.prodCode)
+		log.Errorf("提取灯泡 %s (%s) 基础信息失败", l.devKEY, l.prodCode)
 		return
 	}
 
-	log.Infof("解析灯泡 %s(%s) 的心跳消息成功", l.devKEY, l.prodCode)
+	log.Infof("解析灯泡 %s (%s) 的心跳消息成功", l.devKEY, l.prodCode)
 
 	// --------------------- 判断结果 --------------------------------------------
 	if lightT1012.CmdType_DEV_REPORT_STATUS != devBaseInfo.GetType() {
-		log.Errorf("灯泡 %s(%s) CmdType 错误, 预期: %d, 实际: %d", l.devKEY, l.prodCode, lightT1012.CmdType_DEV_REPORT_STATUS, devBaseInfo.GetType())
+		log.Errorf("灯泡 %s (%s) CmdType 错误, 预期: %d, 实际: %d", l.devKEY, l.prodCode, lightT1012.CmdType_DEV_REPORT_STATUS, devBaseInfo.GetType())
 	}
 
 	if l.mode != devBaseInfo.GetMode() {
-		log.Errorf("灯泡 %s(%s) Mode 错误, 预期: %d, 实际: %d", l.devKEY, l.prodCode, l.mode, devBaseInfo.GetMode())
+		log.Errorf("灯泡 %s (%s) Mode 错误, 预期: %d, 实际: %d", l.devKEY, l.prodCode, l.mode, devBaseInfo.GetMode())
 	}
 
 	if l.status != devBaseInfo.GetOnoffStatus() {
-		log.Errorf("灯泡 %s(%s) Status 错误, 预期: %d, 实际: %d", l.devKEY, l.prodCode, l.status, devBaseInfo.GetOnoffStatus())
+		log.Errorf("灯泡 %s (%s) Status 错误, 预期: %d, 实际: %d", l.devKEY, l.prodCode, l.status, devBaseInfo.GetOnoffStatus())
 	}
 
 	ligthCTRL := devBaseInfo.GetLightCtl()
 
 	if l.lum != ligthCTRL.GetLum() {
-		log.Errorf("灯泡 %s(%s) lum 错误, 预期: %d, 实际: %d", l.devKEY, l.prodCode, l.lum, ligthCTRL.GetLum())
+		log.Errorf("灯泡 %s (%s) lum 错误, 预期: %d, 实际: %d", l.devKEY, l.prodCode, l.lum, ligthCTRL.GetLum())
 	}
 
 	// 只有 T1012 和 T1013 才有色温
 	if l.prodCode != "T1011" {
 		if l.colorTemp != ligthCTRL.GetColorTemp() {
-			log.Errorf("灯泡 %s(%s) ColorTemp 错误, 预期: %d, 实际: %d", l.devKEY, l.prodCode, l.colorTemp, ligthCTRL.GetColorTemp())
+			log.Errorf("灯泡 %s (%s) ColorTemp 错误, 预期: %d, 实际: %d", l.devKEY, l.prodCode, l.colorTemp, ligthCTRL.GetColorTemp())
 		}
 	}
 

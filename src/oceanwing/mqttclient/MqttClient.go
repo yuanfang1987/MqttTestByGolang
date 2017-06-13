@@ -50,7 +50,7 @@ func (n *MqttClient) ConnectToBroker() {
 		for {
 			token := c.Subscribe(n.SubTopic, byte(1), n.SubHandler)
 			if ret := token.WaitTimeout(n.tokenTimeout * time.Second); ret {
-				log.Debugf("Subscribe to topic [%s], error: %s", n.SubTopic, token.Error())
+				log.Debugf("Subscribe to topic %s, error: %s", n.SubTopic, token.Error())
 				if token.Error() == nil {
 					if n.IsFisrtSubscribe {
 						log.Debug("This is first subscribe, send finished signal to the main function.")

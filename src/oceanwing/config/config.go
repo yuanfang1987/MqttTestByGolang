@@ -21,6 +21,9 @@ const (
 	MqttauthUserName         = "mqtt.auth_user_name"
 	MqttauthPassword         = "mqtt.auth_password"
 
+	EufyDeviceSendCmdInterval = "eufydevice.send_command_interval"
+	EufyDeviceCodekeys        = "eufydevice.code_key"
+
 	AnkerBoxServerSendSpeed = "ankerbox.server_send_speed"
 	AnkerBoxDeviceID        = "ankerbox.device_id"
 	AnkerBoxCommandFile     = "ankerbox.command_file"
