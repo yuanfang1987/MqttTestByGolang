@@ -1,10 +1,11 @@
 package device
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
-
 	"oceanwing/commontool"
+	"oceanwing/eufy/result"
 
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
@@ -160,29 +161,46 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 	log.Infof("解析灯泡 %s (%s) 的心跳消息成功", light.DevKEY, light.ProdCode)
 
 	// --------------------- 判断结果 --------------------------------------------
-	if lightT1012.CmdType_DEV_REPORT_STATUS != devBaseInfo.GetType() {
-		log.Errorf("灯泡 %s (%s) CmdType 错误, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, lightT1012.CmdType_DEV_REPORT_STATUS, devBaseInfo.GetType())
-	}
 
-	if light.mode != devBaseInfo.GetMode() {
-		log.Errorf("灯泡 %s (%s) Mode 错误, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.mode, devBaseInfo.GetMode())
-	}
+	var assertFlag string
+	var testContent string
 
-	if light.status != devBaseInfo.GetOnoffStatus() {
-		log.Errorf("灯泡 %s (%s) Status 错误, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.status, devBaseInfo.GetOnoffStatus())
-	}
+	//  CmdType
+	assertFlag = result.PassedOrFailed(lightT1012.CmdType_DEV_REPORT_STATUS == devBaseInfo.GetType())
+	testContent = fmt.Sprintf("灯泡 %s (%s) CmdType, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, lightT1012.CmdType_DEV_REPORT_STATUS, devBaseInfo.GetType())
+	result.WriteToResultFile(light.ProdCode, light.DevKEY, "CmdType", testContent, assertFlag)
+	log.Info(testContent)
+
+	// Mode
+	assertFlag = result.PassedOrFailed(light.mode != devBaseInfo.GetMode())
+	testContent = fmt.Sprintf("灯泡 %s (%s) Mode, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.mode, devBaseInfo.GetMode())
+	result.WriteToResultFile(light.ProdCode, light.DevKEY, "Mode", testContent, assertFlag)
+	log.Info(testContent)
+
+	// Status
+	assertFlag = result.PassedOrFailed(light.status != devBaseInfo.GetOnoffStatus())
+	testContent = fmt.Sprintf("灯泡 %s (%s) Status, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.status, devBaseInfo.GetOnoffStatus())
+	result.WriteToResultFile(light.ProdCode, light.DevKEY, "Status", testContent, assertFlag)
+	log.Info(testContent)
 
 	ligthCTRL := devBaseInfo.GetLightCtl()
-
-	if light.lum != ligthCTRL.GetLum() {
-		log.Errorf("灯泡 %s (%s) lum 错误, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.lum, ligthCTRL.GetLum())
+	if ligthCTRL == nil {
+		log.Error("GetLightCtl fail")
+		return
 	}
+
+	// lum
+	assertFlag = result.PassedOrFailed(light.lum != ligthCTRL.GetLum())
+	testContent = fmt.Sprintf("灯泡 %s (%s) lum, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.lum, ligthCTRL.GetLum())
+	result.WriteToResultFile(light.ProdCode, light.DevKEY, "Lum", testContent, assertFlag)
+	log.Info(testContent)
 
 	// 只有 T1012 和 T1013 才有色温
 	if light.ProdCode != "T1011" {
-		if light.colorTemp != ligthCTRL.GetColorTemp() {
-			log.Errorf("灯泡 %s (%s) ColorTemp 错误, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.colorTemp, ligthCTRL.GetColorTemp())
-		}
+		assertFlag = result.PassedOrFailed(light.colorTemp != ligthCTRL.GetColorTemp())
+		testContent = fmt.Sprintf("灯泡 %s (%s) ColorTemp, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.colorTemp, ligthCTRL.GetColorTemp())
+		result.WriteToResultFile(light.ProdCode, light.DevKEY, "ColorTemp", testContent, assertFlag)
+		log.Info(testContent)
 	}
 
 }

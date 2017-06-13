@@ -1,15 +1,9 @@
-// 这是一个 light-functional-test 分支，
-// 仅用于对智能灯泡的功能稳定性测试
-
-/*   更新日志
-2017.06.07
-*/
-
 package main
 
 import (
 	"oceanwing/commontool"
 	"oceanwing/config"
+	"oceanwing/eufy/result"
 	"oceanwing/eufy/serverpoint"
 	"os"
 	"os/signal"
@@ -47,6 +41,10 @@ func main() {
 		capath := config.GetString(config.MqttCAFile)
 		commontool.BuildTlSConfig(capath)
 	}
+
+	// 新建csv文件用于存放测试结果
+	result.NewResultFile("./EufyDeviceFuntionalTest.csv")
+	defer result.CloseResultFile()
 
 	go func() {
 		// create a new cleaner

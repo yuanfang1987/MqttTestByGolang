@@ -59,7 +59,7 @@ func (s *MqttServerPoint) RunMqttService(clientid, username, pwd, broker string,
 	s.MqttClient.ConnectToBroker()
 }
 
-// 分发订阅到的消息给对应的light去处理
+// 分发订阅到的消息给对应的 device 去处理
 func (s *MqttServerPoint) distributeMsg(message MQTT.Message) {
 	t := message.Topic()
 	payload := message.Payload()
