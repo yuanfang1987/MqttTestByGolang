@@ -1,8 +1,6 @@
 package light
 
 import (
-	"math"
-	"math/rand"
 	"oceanwing/commontool"
 	"oceanwing/mqttclient"
 	"strings"
@@ -85,10 +83,10 @@ func (s *MqttServerPoint) PublishMsgToLight() {
 
 	for _, light := range s.lighters {
 		s.PubTopic = light.pubTopicl
-		sessionid := rand.Int31n(math.MaxInt32)
 		brightness := uint32(commontool.RandInt64(1, 100))
 		color := uint32(commontool.RandInt64(0, 100))
-		payload := light.buildSetLightDataMsg(sessionid, brightness, color)
+		payload := light.buildSetLightDataMsg(brightness, color)
+		// payload := light.buildSetAwayModeMsg(15, 10, 15, 20, 1, 1, true, true)
 		s.MqttClient.PublishMessage(payload)
 	}
 }

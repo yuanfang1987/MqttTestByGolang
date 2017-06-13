@@ -1,8 +1,12 @@
 package light
 
 import (
+	"math"
+	"math/rand"
+
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
+	serverAwayMode "oceanwing/eufy/protobuf.lib/common/server/awaymode"
 	lightEvent "oceanwing/eufy/protobuf.lib/light/lightevent"
 	lightT1012 "oceanwing/eufy/protobuf.lib/light/t1012"
 )
@@ -33,9 +37,9 @@ func (l *lightProd) handleIncomingMsg() {
 	}()
 }
 
-func (l *lightProd) buildSetLightDataMsg(sessionid int32, brightness, color uint32) []byte {
+func (l *lightProd) buildSetLightDataMsg(brightness, color uint32) []byte {
 	o := &lightT1012.ServerMessage{
-		SessionId:     proto.Int32(sessionid),
+		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
 		RemoteMessage: setLightBrightAndColor(brightness, color),
 	}
 	data, err := proto.Marshal(o)
@@ -64,6 +68,38 @@ func setLightBrightAndColor(brightness, color uint32) *lightT1012.ServerMessage_
 	}
 }
 
+func (l *lightProd) buildSetAwayModeMsg(startHours, startMinutes, finishHours, finishMinutes,
+	weekInfo, leaveMode uint32, repetiton, LeaveHomeState bool) []byte {
+	// set away mode msg
+	awayMod := &lightT1012.ServerMessage_SetAwayMode_Status{
+		SetAwayMode_Status: &lightT1012.ServerMessage_SetAwayMode{
+			Type: lightT1012.CmdType_REMOTE_SET_AWAYMODE_STATUS.Enum(),
+			SyncLeaveModeMsg: &serverAwayMode.LeaveHomeMessage{
+				StartHours:     proto.Uint32(startHours),
+				StartMinutes:   proto.Uint32(startMinutes),
+				FinishHours:    proto.Uint32(finishHours),
+				FinishMinutes:  proto.Uint32(finishMinutes),
+				Repetiton:      proto.Bool(repetiton),
+				WeekInfo:       proto.Uint32(weekInfo),
+				LeaveHomeState: proto.Bool(LeaveHomeState),
+				LeaveMode:      proto.Uint32(leaveMode),
+			},
+		},
+	}
+
+	o := &lightT1012.ServerMessage{
+		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
+		RemoteMessage: awayMod,
+	}
+	data, err := proto.Marshal(o)
+	if err != nil {
+		log.Errorf("build set leave home mode message fail: %s", err.Error())
+		return nil
+	}
+	log.Debug("build set leave home mode message successfully.")
+	return data
+}
+
 // 解析心跳消息
 func (l *lightProd) unMarshalHeartBeatMsg(incomingPayload []byte) {
 	deviceMsg := &lightT1012.DeviceMessage{}
@@ -72,6 +108,13 @@ func (l *lightProd) unMarshalHeartBeatMsg(incomingPayload []byte) {
 		log.Errorf("解析灯泡 %s (%s) 心跳消息失败: %s", l.devKEY, l.prodCode, err)
 		return
 	}
+
+	// debug
+	noneParaMsg := deviceMsg.GetNonParaMsg()
+	if noneParaMsg != nil {
+		log.Infof("Cmd type of Non_ParamMsg: %d", noneParaMsg.GetType())
+	}
+	// end debug
 
 	devBaseInfo := deviceMsg.GetReportDevBaseInfo()
 	if devBaseInfo == nil {
