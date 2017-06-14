@@ -207,13 +207,13 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 	log.Info(testContent)
 
 	// Mode
-	assertFlag = result.PassedOrFailed(light.mode != devBaseInfo.GetMode())
+	assertFlag = result.PassedOrFailed(light.mode == devBaseInfo.GetMode())
 	testContent = fmt.Sprintf("灯泡 %s (%s) Mode, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.mode, devBaseInfo.GetMode())
 	result.WriteToResultFile(light.ProdCode, light.DevKEY, "Mode", testContent, assertFlag)
 	log.Info(testContent)
 
 	// Status
-	assertFlag = result.PassedOrFailed(light.status != devBaseInfo.GetOnoffStatus())
+	assertFlag = result.PassedOrFailed(light.status == devBaseInfo.GetOnoffStatus())
 	testContent = fmt.Sprintf("灯泡 %s (%s) Status, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.status, devBaseInfo.GetOnoffStatus())
 	result.WriteToResultFile(light.ProdCode, light.DevKEY, "Status", testContent, assertFlag)
 	log.Info(testContent)
@@ -225,14 +225,14 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 	}
 
 	// lum
-	assertFlag = result.PassedOrFailed(light.lum != ligthCTRL.GetLum())
+	assertFlag = result.PassedOrFailed(light.lum == ligthCTRL.GetLum())
 	testContent = fmt.Sprintf("灯泡 %s (%s) lum, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.lum, ligthCTRL.GetLum())
 	result.WriteToResultFile(light.ProdCode, light.DevKEY, "Lum", testContent, assertFlag)
 	log.Info(testContent)
 
 	// 只有 T1012 和 T1013 才有色温
 	if light.ProdCode != "T1011" {
-		assertFlag = result.PassedOrFailed(light.colorTemp != ligthCTRL.GetColorTemp())
+		assertFlag = result.PassedOrFailed(light.colorTemp == ligthCTRL.GetColorTemp())
 		testContent = fmt.Sprintf("灯泡 %s (%s) ColorTemp, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.colorTemp, ligthCTRL.GetColorTemp())
 		result.WriteToResultFile(light.ProdCode, light.DevKEY, "ColorTemp", testContent, assertFlag)
 		log.Info(testContent)

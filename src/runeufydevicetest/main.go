@@ -44,7 +44,7 @@ func main() {
 
 	// 新建csv文件用于存放测试结果
 	result.NewResultFile("./EufyDeviceFuntionalTest.csv")
-	defer result.CloseResultFile()
+	//defer result.CloseResultFile()
 
 	go func() {
 		// create a new cleaner
