@@ -72,8 +72,8 @@ func (s *MqttServerPoint) distributeMsg(message MQTT.Message) {
 	}
 }
 
-// PublishMsgToLight 发指令给灯泡
-func (s *MqttServerPoint) PublishMsgToLight() {
+// PublishMsgToBroker 发布指令到Broker上，由Broker推送给Device
+func (s *MqttServerPoint) PublishMsgToBroker() {
 	if len(s.devices) == 0 {
 		log.Error("No device found.")
 		return

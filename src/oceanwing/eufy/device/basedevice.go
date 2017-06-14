@@ -16,4 +16,5 @@ type baseDevice struct {
 	PubTopicl  string
 	SubTopicl  string
 	SubMessage chan []byte
+	IsCmdSent  bool
 }

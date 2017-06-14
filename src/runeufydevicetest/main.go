@@ -51,14 +51,14 @@ func main() {
 		eufyServer := serverpoint.NewMqttServerPoint()
 		allDevices := strings.Split(codeKeys, ",")
 		eufyServer.SetupRunningDevices(allDevices)
-		// run mqtt service
+		// run mqtt service.
 		eufyServer.RunMqttService(clientIDUserName, clientIDUserName, password, broker, needca)
 		//timer.
 		heartBeatInterval := time.NewTicker(time.Second * time.Duration(interval)).C
 		for {
 			select {
 			case <-heartBeatInterval:
-				eufyServer.PublishMsgToLight()
+				eufyServer.PublishMsgToBroker()
 			}
 		}
 	}()

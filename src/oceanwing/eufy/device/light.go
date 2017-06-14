@@ -14,7 +14,7 @@ import (
 	lightT1012 "oceanwing/eufy/protobuf.lib/light/t1012"
 )
 
-// Light 灯泡类产品的一个 struct 描述，包括 T1011,T1012,T1013.
+// Light 灯泡类产品的一个 struct 描述，包括 T1011,T1012,T1013
 type Light struct {
 	baseDevice
 	mode      lightT1012.DeviceMessage_ReportDevBaseInfo_LIGHT_DEV_MODE
@@ -70,6 +70,8 @@ func (light *Light) SendPayload(pl []byte) {
 func (light *Light) BuildProtoBufMessage() []byte {
 	brightness := uint32(commontool.RandInt64(1, 100))
 	color := uint32(commontool.RandInt64(0, 100))
+	// 设置 IsCmdSent 标志为 true
+	light.IsCmdSent = true
 	return light.buildSetLightDataMsg(brightness, color)
 }
 
@@ -161,6 +163,15 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 	log.Infof("解析灯泡 %s (%s) 的心跳消息成功", light.DevKEY, light.ProdCode)
 
 	// --------------------- 判断结果 --------------------------------------------
+
+	// 只有在给设备下发了指令之后，才去判断它的即时心跳， 常规心跳不要管
+	if !light.IsCmdSent {
+		log.Info("尚未有指令下发给设备，无需判断心跳")
+		return
+	}
+
+	// 重置
+	light.IsCmdSent = false
 
 	var assertFlag string
 	var testContent string
