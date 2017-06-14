@@ -5,6 +5,10 @@ type EufyDevice interface {
 	HandleSubscribeMessage()
 	GetSubTopic() string
 	GetPubTopic() string
+	GetProductCode() string
+	GetProductKey() string
+	GetSentCmds() int
+	GetDecodedheartBeat() int
 	SendPayload([]byte)
 	BuildProtoBufMessage() []byte
 }

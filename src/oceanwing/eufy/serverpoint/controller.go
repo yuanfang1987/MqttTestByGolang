@@ -2,7 +2,9 @@ package serverpoint
 
 import (
 	"oceanwing/eufy/device"
+	"oceanwing/eufy/result"
 	"oceanwing/mqttclient"
+	"strconv"
 	"strings"
 
 	log "github.com/cihub/seelog"
@@ -83,5 +85,13 @@ func (s *MqttServerPoint) PublishMsgToBroker() {
 		s.PubTopic = dev.GetPubTopic()
 		payload := dev.BuildProtoBufMessage()
 		s.MqttClient.PublishMessage(payload)
+	}
+}
+
+// HappyEnding 用于把每个设备发出的指令数、解析的心跳数，写入结果文件
+func HappyEnding() {
+	for _, dev := range servPointInstance.devices {
+		result.WriteToResultFile(dev.GetProductCode(), dev.GetProductKey(), "SentCmd", strconv.Itoa(dev.GetSentCmds()),
+			"Decoded heart Beat", strconv.Itoa(dev.GetDecodedheartBeat()))
 	}
 }
