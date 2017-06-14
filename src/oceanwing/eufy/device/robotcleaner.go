@@ -120,11 +120,11 @@ func (robot *RobotCleaner) HandleSubscribeMessage() {
 						}
 
 						if robot.hangOn == 0 {
-							robot.IsCmdSent = false
-							robot.expResultIndex = 99
 							testContent := fmt.Sprintf("%s, 预期: %s, 结果: %s", robot.checkPoint, strconv.Itoa(int(robot.expResultValue)),
 								strconv.Itoa(int(heartBeatInfo[robot.expResultIndex])))
 							result.WriteToResultFile(robot.ProdCode, robot.DevKEY, robot.checkPoint, testContent, assertFlag)
+							robot.IsCmdSent = false
+							robot.expResultIndex = 99
 						}
 					}
 				}
