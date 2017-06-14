@@ -38,7 +38,7 @@ func (s *MqttServerPoint) SetupRunningDevices(keys []string) {
 		case "T1012", "T1011":
 			dev = device.NewLight(codeAndKey[0], codeAndKey[1])
 		case "T2103":
-			// to do.
+			dev = device.NewRobotCleaner(codeAndKey[0], codeAndKey[1])
 		}
 		log.Debugf("Create a %s device, Key: %s", codeAndKey[0], codeAndKey[1])
 		dev.HandleSubscribeMessage()
@@ -84,6 +84,9 @@ func (s *MqttServerPoint) PublishMsgToBroker() {
 	for _, dev := range s.devices {
 		s.PubTopic = dev.GetPubTopic()
 		payload := dev.BuildProtoBufMessage()
+		if payload == nil || len(payload) == 0 {
+			continue
+		}
 		s.MqttClient.PublishMessage(payload)
 	}
 }
