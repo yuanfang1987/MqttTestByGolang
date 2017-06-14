@@ -72,6 +72,8 @@ func (light *Light) BuildProtoBufMessage() []byte {
 	color := uint32(commontool.RandInt64(0, 100))
 	// 设置 IsCmdSent 标志为 true
 	light.IsCmdSent = true
+	// 已下发的指令数量累加 1
+	light.CmdSentQuantity++
 	return light.buildSetLightDataMsg(brightness, color)
 }
 
@@ -172,6 +174,8 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 
 	// 重置
 	light.IsCmdSent = false
+	// 已解析的心跳数量累加 1
+	light.DecodeHeartBeatMsgQuantity++
 
 	var assertFlag string
 	var testContent string
