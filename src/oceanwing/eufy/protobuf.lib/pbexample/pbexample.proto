@@ -1,0 +1,40 @@
+syntax = "proto2";
+option go_package = "pbexample";
+
+message Person {
+  required string name = 1;
+  required int32 id = 2;
+  optional string email = 3;
+
+  enum PhoneType {
+    MOBILE = 0;
+    HOME = 1;
+    WORK = 2;
+  }
+
+  message PhoneNumber {
+    required string number = 1;
+    optional PhoneType type = 2 [default = HOME];
+  }
+
+  repeated PhoneNumber phone = 4;
+  
+  map<string,string> myMap = 5;
+  
+  oneof choice {
+	 Food eat = 6;
+	 House live = 7;
+	 string others = 8;
+  }
+  
+}
+
+message Food {
+	required string name = 1;
+	required int32 price = 2;
+}
+
+message House {
+	required string addr = 1;
+	optional string owner = 2;
+}
