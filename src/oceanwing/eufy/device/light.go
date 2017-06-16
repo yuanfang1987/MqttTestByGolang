@@ -1,11 +1,9 @@
 package device
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"oceanwing/commontool"
-	"oceanwing/eufy/result"
 
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
@@ -31,8 +29,8 @@ func NewLight(prodCode, devKey string) EufyDevice {
 	}
 	o.ProdCode = prodCode
 	o.DevKEY = devKey
-	o.PubTopicl = "DEVICE/T1012/" + devKey + "/SUB_MESSAGE"
-	o.SubTopicl = "DEVICE/T1012/" + devKey + "/PUH_MESSAGE"
+	o.PubTopicl = "DEVICE/T1012/" + devKey + "/PUH_MESSAGE"
+	o.SubTopicl = "DEVICE/T1012/" + devKey + "/SUB_MESSAGE"
 	o.SubMessage = make(chan []byte)
 	return o
 }
@@ -45,7 +43,7 @@ func (light *Light) HandleSubscribeMessage() {
 			select {
 			case msg := <-light.SubMessage:
 				log.Infof("get new incoming message from device: %s", light.DevKEY)
-				light.unMarshalHeartBeatMsg(msg)
+				light.unMarshalServerMsg(msg)
 			}
 		}
 	}()
@@ -184,12 +182,10 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 		return
 	}
 
-	// debug
 	noneParaMsg := deviceMsg.GetNonParaMsg()
 	if noneParaMsg != nil {
 		log.Infof("Cmd type of Non_ParamMsg: %d", noneParaMsg.GetType())
 	}
-	// end debug
 
 	devBaseInfo := deviceMsg.GetReportDevBaseInfo()
 	if devBaseInfo == nil {
@@ -199,39 +195,16 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 
 	log.Infof("解析灯泡 %s (%s) 的心跳消息成功", light.DevKEY, light.ProdCode)
 
-	// --------------------- 判断结果 --------------------------------------------
-
-	// 只有在给设备下发了指令之后，才去判断它的即时心跳， 常规心跳不要管
-	if !light.IsCmdSent {
-		log.Info("尚未有指令下发给设备，无需判断心跳")
-		return
-	}
-
-	// 重置
-	light.IsCmdSent = false
-	// 已解析的心跳数量累加 1
-	light.DecodeHeartBeatMsgQuantity++
-
-	var assertFlag string
-	var testContent string
+	// --------------------- 取出结果 --------------------------------------------
 
 	//  CmdType
-	assertFlag = result.PassedOrFailed(lightT1012.CmdType_DEV_REPORT_STATUS == devBaseInfo.GetType())
-	testContent = fmt.Sprintf("灯泡 %s (%s) CmdType, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, lightT1012.CmdType_DEV_REPORT_STATUS, devBaseInfo.GetType())
-	result.WriteToResultFile(light.ProdCode, light.DevKEY, "CmdType", testContent, assertFlag)
-	log.Info(testContent)
+	log.Infof("灯泡 %s (%s) CmdType: %d", light.DevKEY, light.ProdCode, devBaseInfo.GetType())
 
 	// Mode
-	assertFlag = result.PassedOrFailed(light.mode == devBaseInfo.GetMode())
-	testContent = fmt.Sprintf("灯泡 %s (%s) Mode, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.mode, devBaseInfo.GetMode())
-	result.WriteToResultFile(light.ProdCode, light.DevKEY, "Mode", testContent, assertFlag)
-	log.Info(testContent)
+	log.Infof("灯泡 %s (%s) Mode: %d", light.DevKEY, light.ProdCode, devBaseInfo.GetMode())
 
 	// Status
-	assertFlag = result.PassedOrFailed(light.status == devBaseInfo.GetOnoffStatus())
-	testContent = fmt.Sprintf("灯泡 %s (%s) Status, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.status, devBaseInfo.GetOnoffStatus())
-	result.WriteToResultFile(light.ProdCode, light.DevKEY, "Status", testContent, assertFlag)
-	log.Info(testContent)
+	log.Infof("灯泡 %s (%s) Status: %d", light.DevKEY, light.ProdCode, devBaseInfo.GetOnoffStatus())
 
 	ligthCTRL := devBaseInfo.GetLightCtl()
 	if ligthCTRL == nil {
@@ -240,17 +213,38 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 	}
 
 	// lum
-	assertFlag = result.PassedOrFailed(light.lum == ligthCTRL.GetLum())
-	testContent = fmt.Sprintf("灯泡 %s (%s) lum, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.lum, ligthCTRL.GetLum())
-	result.WriteToResultFile(light.ProdCode, light.DevKEY, "Lum", testContent, assertFlag)
-	log.Info(testContent)
+	log.Infof("灯泡 %s (%s) lum: %d", light.DevKEY, light.ProdCode, ligthCTRL.GetLum())
 
 	// 只有 T1012 和 T1013 才有色温
 	if light.ProdCode != "T1011" {
-		assertFlag = result.PassedOrFailed(light.colorTemp == ligthCTRL.GetColorTemp())
-		testContent = fmt.Sprintf("灯泡 %s (%s) ColorTemp, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.colorTemp, ligthCTRL.GetColorTemp())
-		result.WriteToResultFile(light.ProdCode, light.DevKEY, "ColorTemp", testContent, assertFlag)
-		log.Info(testContent)
+		log.Infof("灯泡 %s (%s) ColorTemp: %d", light.DevKEY, light.ProdCode, ligthCTRL.GetColorTemp())
+	}
+
+}
+
+func (light *Light) unMarshalServerMsg(incomingPayload []byte) {
+	serMsg := &lightT1012.ServerMessage{}
+	err := proto.Unmarshal(incomingPayload, serMsg)
+	if err != nil {
+		log.Errorf("UnMarshal server message fail: %s", err)
+		return
+	}
+
+	// session id
+	log.Infof("Session ID: %d", serMsg.GetSessionId())
+
+	// SetLightData
+	setlightdata := serMsg.GetSetLightData()
+	if setlightdata != nil {
+		log.Infof("CmdType: %d", setlightdata.GetType())
+
+		lightctrl := setlightdata.GetLightCtl()
+		if lightctrl != nil {
+			log.Infof("Lum: %d", lightctrl.GetLum())
+			log.Infof("ColorTemp: %d", lightctrl.GetColorTemp())
+		}
+
+		log.Infof("OnOff Status: %d", setlightdata.GetOnoffStatus())
 	}
 
 }

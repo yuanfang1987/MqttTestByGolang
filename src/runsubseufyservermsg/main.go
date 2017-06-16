@@ -3,7 +3,6 @@ package main
 import (
 	"oceanwing/commontool"
 	"oceanwing/config"
-	"oceanwing/eufy/result"
 	"oceanwing/eufy/serverpoint"
 	"os"
 	"os/signal"
@@ -43,8 +42,7 @@ func main() {
 	}
 
 	// 新建csv文件用于存放测试结果
-	result.NewResultFile("./EufyDeviceFuntionalTest.csv")
-	//defer result.CloseResultFile()
+	// result.NewResultFile("./EufyDeviceFuntionalTest.csv")
 
 	go func() {
 		// create a new cleaner
@@ -58,7 +56,8 @@ func main() {
 		for {
 			select {
 			case <-heartBeatInterval:
-				eufyServer.PublishMsgToBroker()
+				//eufyServer.PublishMsgToBroker()
+				log.Infof("%d seconds pass...", interval)
 			}
 		}
 	}()
@@ -67,5 +66,5 @@ func main() {
 	signal.Notify(channelSignal, os.Interrupt)
 	signal.Notify(channelSignal, syscall.SIGTERM)
 	<-channelSignal
-	serverpoint.HappyEnding()
+	// serverpoint.HappyEnding()
 }
