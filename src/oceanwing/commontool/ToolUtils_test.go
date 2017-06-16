@@ -80,8 +80,15 @@ import (
 // 	}
 // }
 
-func Test_convertByteToString(t *testing.T) {
-	var aa byte
-	aa = 1
-	fmt.Printf("aa is: %d\n", int(aa))
+// func Test_convertByteToString(t *testing.T) {
+// 	var aa byte
+// 	aa = 1
+// 	fmt.Printf("aa is: %d\n", int(aa))
+// }
+
+func Test_RandInt64(t *testing.T) {
+	for i := 0; i < 50; i++ {
+		d := RandInt64(0, 2)
+		fmt.Printf("value: %d\n", d)
+	}
 }

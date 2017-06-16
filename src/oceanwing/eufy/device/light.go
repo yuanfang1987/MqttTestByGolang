@@ -88,19 +88,28 @@ func (light *Light) SendPayload(pl []byte) {
 
 // BuildProtoBufMessage 实现 EufyDevice 接口
 func (light *Light) BuildProtoBufMessage() []byte {
-	brightness := uint32(commontool.RandInt64(1, 100))
-	color := uint32(commontool.RandInt64(0, 100))
+	// 随机产生亮度和色温的值
+	brightness := uint32(commontool.RandInt64(0, 101))
+	color := uint32(commontool.RandInt64(0, 101))
+	// 随机产生是否开灯的值，只有两个可选值： 0 和 1
+	var onOffStatus *lightT1012.LIGHT_ONOFF_STATUS
+	onOffValue := uint32(commontool.RandInt64(0, 2))
+	if onOffValue == 1 {
+		onOffStatus = lightT1012.LIGHT_ONOFF_STATUS_ON.Enum()
+	} else {
+		onOffStatus = lightT1012.LIGHT_ONOFF_STATUS_OFF.Enum()
+	}
 	// 设置 IsCmdSent 标志为 true
 	light.IsCmdSent = true
 	// 已下发的指令数量累加 1
 	light.CmdSentQuantity++
-	return light.buildSetLightDataMsg(brightness, color)
+	return light.buildSetLightDataMsg(brightness, color, onOffStatus)
 }
 
-func (light *Light) buildSetLightDataMsg(brightness, color uint32) []byte {
+func (light *Light) buildSetLightDataMsg(brightness, color uint32, status *lightT1012.LIGHT_ONOFF_STATUS) []byte {
 	o := &lightT1012.ServerMessage{
 		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
-		RemoteMessage: setLightBrightAndColor(brightness, color),
+		RemoteMessage: setLightBrightAndColor(brightness, color, status),
 	}
 	data, err := proto.Marshal(o)
 	if err != nil {
@@ -111,12 +120,17 @@ func (light *Light) buildSetLightDataMsg(brightness, color uint32) []byte {
 	// 确保 Marshal 成功后，再更改 lightProd 的值
 	light.lum = brightness
 	light.colorTemp = color
+	if status == lightT1012.LIGHT_ONOFF_STATUS_ON.Enum() {
+		light.status = 1
+	} else {
+		light.status = 0
+	}
 	return data
 }
 
 // SetLightData is a struct
 // brightness: 亮度，color: 色温,  ServerMessage_SetLightData
-func setLightBrightAndColor(brightness, color uint32) *lightT1012.ServerMessage_SetLightData_ {
+func setLightBrightAndColor(brightness, color uint32, status *lightT1012.LIGHT_ONOFF_STATUS) *lightT1012.ServerMessage_SetLightData_ {
 	return &lightT1012.ServerMessage_SetLightData_{
 		SetLightData: &lightT1012.ServerMessage_SetLightData{
 			Type: lightT1012.CmdType_REMOTE_SET_LIGHTING_PARA.Enum(),
@@ -124,6 +138,7 @@ func setLightBrightAndColor(brightness, color uint32) *lightT1012.ServerMessage_
 				Lum:       proto.Uint32(brightness),
 				ColorTemp: proto.Uint32(color),
 			},
+			OnoffStatus: status,
 		},
 	}
 }
