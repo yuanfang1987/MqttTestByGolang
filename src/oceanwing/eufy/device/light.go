@@ -29,8 +29,8 @@ func NewLight(prodCode, devKey string) EufyDevice {
 	}
 	o.ProdCode = prodCode
 	o.DevKEY = devKey
-	o.PubTopicl = "DEVICE/T1012/" + devKey + "/PUH_MESSAGE"
-	o.SubTopicl = "DEVICE/T1012/" + devKey + "/SUB_MESSAGE"
+	o.PubTopicl = "DEVICE/T1012/" + devKey + "/SUB_MESSAGE"
+	o.SubTopicl = "DEVICE/T1012/" + devKey + "/PUH_MESSAGE"
 	o.SubMessage = make(chan []byte)
 	return o
 }
@@ -43,7 +43,7 @@ func (light *Light) HandleSubscribeMessage() {
 			select {
 			case msg := <-light.SubMessage:
 				log.Infof("get new incoming message from device: %s", light.DevKEY)
-				light.unMarshalServerMsg(msg)
+				light.unMarshalHeartBeatMsg(msg)
 			}
 		}
 	}()
@@ -189,7 +189,7 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 
 	devBaseInfo := deviceMsg.GetReportDevBaseInfo()
 	if devBaseInfo == nil {
-		log.Errorf("提取灯泡 %s (%s) 基础信息失败", light.DevKEY, light.ProdCode)
+		log.Warnf("提取灯泡 %s (%s) 基础信息失败", light.DevKEY, light.ProdCode)
 		return
 	}
 
@@ -198,13 +198,13 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 	// --------------------- 取出结果 --------------------------------------------
 
 	//  CmdType
-	log.Infof("灯泡 %s (%s) CmdType: %d", light.DevKEY, light.ProdCode, devBaseInfo.GetType())
+	log.Infof("灯泡 %s (%s) 指令类型: %d", light.DevKEY, light.ProdCode, devBaseInfo.GetType())
 
 	// Mode
-	log.Infof("灯泡 %s (%s) Mode: %d", light.DevKEY, light.ProdCode, devBaseInfo.GetMode())
+	log.Infof("灯泡 %s (%s) 模式: %d", light.DevKEY, light.ProdCode, devBaseInfo.GetMode())
 
 	// Status
-	log.Infof("灯泡 %s (%s) Status: %d", light.DevKEY, light.ProdCode, devBaseInfo.GetOnoffStatus())
+	log.Infof("灯泡 %s (%s) 状态: %d", light.DevKEY, light.ProdCode, devBaseInfo.GetOnoffStatus())
 
 	ligthCTRL := devBaseInfo.GetLightCtl()
 	if ligthCTRL == nil {
@@ -213,11 +213,11 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 	}
 
 	// lum
-	log.Infof("灯泡 %s (%s) lum: %d", light.DevKEY, light.ProdCode, ligthCTRL.GetLum())
+	log.Infof("灯泡 %s (%s) 亮度: %d", light.DevKEY, light.ProdCode, ligthCTRL.GetLum())
 
 	// 只有 T1012 和 T1013 才有色温
 	if light.ProdCode != "T1011" {
-		log.Infof("灯泡 %s (%s) ColorTemp: %d", light.DevKEY, light.ProdCode, ligthCTRL.GetColorTemp())
+		log.Infof("灯泡 %s (%s) 色温: %d", light.DevKEY, light.ProdCode, ligthCTRL.GetColorTemp())
 	}
 
 }
