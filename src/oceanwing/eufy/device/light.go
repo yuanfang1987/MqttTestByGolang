@@ -88,49 +88,72 @@ func (light *Light) SendPayload(pl []byte) {
 
 // BuildProtoBufMessage 实现 EufyDevice 接口
 func (light *Light) BuildProtoBufMessage() []byte {
-	// 随机产生亮度和色温的值
-	brightness := uint32(commontool.RandInt64(0, 101))
-	color := uint32(commontool.RandInt64(0, 101))
-	// 随机产生是否开灯的值，只有两个可选值： 0 和 1
-	var onOffStatus *lightT1012.LIGHT_ONOFF_STATUS
-	onOffValue := uint32(commontool.RandInt64(0, 2))
-	if onOffValue == 1 {
-		onOffStatus = lightT1012.LIGHT_ONOFF_STATUS_ON.Enum()
-	} else {
-		onOffStatus = lightT1012.LIGHT_ONOFF_STATUS_OFF.Enum()
-	}
-	// 设置 IsCmdSent 标志为 true
-	light.IsCmdSent = true
-	// 已下发的指令数量累加 1
-	light.CmdSentQuantity++
-	return light.buildSetLightDataMsg(brightness, color, onOffStatus)
-}
-
-func (light *Light) buildSetLightDataMsg(brightness, color uint32, status *lightT1012.LIGHT_ONOFF_STATUS) []byte {
 	o := &lightT1012.ServerMessage{
 		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
-		RemoteMessage: setLightBrightAndColor(brightness, color, status),
+		RemoteMessage: light.setLightBrightAndColor(),
 	}
 	data, err := proto.Marshal(o)
+
 	if err != nil {
 		log.Errorf("build set light data message fail: %s", err.Error())
 		return nil
 	}
-	log.Debugf("build set light data message successfully, brightness: %d, color: %d", brightness, color)
-	// 确保 Marshal 成功后，再更改 lightProd 的值
-	light.lum = brightness
-	light.colorTemp = color
-	if status == lightT1012.LIGHT_ONOFF_STATUS_ON.Enum() {
-		light.status = 1
-	} else {
-		light.status = 0
-	}
+
+	// 设置 IsCmdSent 标志为 true
+	light.IsCmdSent = true
+	// 已下发的指令数量累加 1
+	light.CmdSentQuantity++
+
 	return data
 }
 
 // SetLightData is a struct
 // brightness: 亮度，color: 色温,  ServerMessage_SetLightData
-func setLightBrightAndColor(brightness, color uint32, status *lightT1012.LIGHT_ONOFF_STATUS) *lightT1012.ServerMessage_SetLightData_ {
+func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage_SetLightData_ {
+	seed := commontool.RandInt64(0, 10)
+	var content string
+	// seed 随机数产生的范围是 0 到 9 共 10 个数字，则用 30%的概率去执行开关灯， 剩下的执行调节亮度色温
+	if seed < 3 {
+		var nextStatus *lightT1012.LIGHT_ONOFF_STATUS
+		// 如果灯的当前状态是开着的，则执行关闭操作， 反之则执行打开操作
+		if light.status == lightT1012.LIGHT_ONOFF_STATUS_ON {
+			nextStatus = lightT1012.LIGHT_ONOFF_STATUS_OFF.Enum()
+			log.Info("关灯")
+			// 关灯后， 亮度和色温都应该变成 0
+			light.status = 0
+			light.lum = 0
+			light.colorTemp = 0
+			content = "关灯"
+		} else {
+			nextStatus = lightT1012.LIGHT_ONOFF_STATUS_ON.Enum()
+			log.Info("开灯")
+			// 开灯后，亮度为100，色温为0，but why???
+			light.status = 1
+			light.lum = 100
+			light.colorTemp = 0
+			content = "开灯"
+		}
+
+		return &lightT1012.ServerMessage_SetLightData_{
+			SetLightData: &lightT1012.ServerMessage_SetLightData{
+				Type:        lightT1012.CmdType_REMOTE_SET_LIGHTING_PARA.Enum(),
+				OnoffStatus: nextStatus,
+			},
+		}
+	}
+
+	// 调节亮度和色温, 随机产生亮度和色温的值
+	brightness := uint32(commontool.RandInt64(0, 101))
+	color := uint32(commontool.RandInt64(0, 101))
+	light.lum = brightness
+	light.colorTemp = color
+	light.status = 1
+	log.Infof("执行调节亮度色温操作, lum: %d, colorTemp: %d", brightness, color)
+	content = "调节亮度和色温"
+
+	// 在.csv 结果文件上打个标志
+	result.WriteToResultFile(light.ProdCode, light.DevKEY, "NA", content, "NA")
+
 	return &lightT1012.ServerMessage_SetLightData_{
 		SetLightData: &lightT1012.ServerMessage_SetLightData{
 			Type: lightT1012.CmdType_REMOTE_SET_LIGHTING_PARA.Enum(),
@@ -138,9 +161,9 @@ func setLightBrightAndColor(brightness, color uint32, status *lightT1012.LIGHT_O
 				Lum:       proto.Uint32(brightness),
 				ColorTemp: proto.Uint32(color),
 			},
-			OnoffStatus: status,
 		},
 	}
+
 }
 
 func (light *Light) buildSetAwayModeMsg(startHours, startMinutes, finishHours, finishMinutes,
@@ -184,16 +207,14 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 		return
 	}
 
-	// debug
 	noneParaMsg := deviceMsg.GetNonParaMsg()
 	if noneParaMsg != nil {
 		log.Infof("Cmd type of Non_ParamMsg: %d", noneParaMsg.GetType())
 	}
-	// end debug
 
 	devBaseInfo := deviceMsg.GetReportDevBaseInfo()
 	if devBaseInfo == nil {
-		log.Errorf("提取灯泡 %s (%s) 基础信息失败", light.DevKEY, light.ProdCode)
+		log.Warnf("提取灯泡 %s (%s) 基础信息失败", light.DevKEY, light.ProdCode)
 		return
 	}
 
