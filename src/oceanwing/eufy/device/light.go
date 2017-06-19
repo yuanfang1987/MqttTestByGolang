@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"oceanwing/commontool"
 	"oceanwing/eufy/result"
+	"time"
 
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
@@ -88,16 +89,20 @@ func (light *Light) SendPayload(pl []byte) {
 
 // BuildProtoBufMessage 实现 EufyDevice 接口
 func (light *Light) BuildProtoBufMessage() []byte {
-	o := &lightT1012.ServerMessage{
-		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
-		RemoteMessage: light.setLightBrightAndColor(),
+	// 如果上一次的测试结果没有通过，则被挂起，则先不要发新的指令过去
+	if light.HangOn != 0 {
+		log.Warnf("上一次测试未通过，需等待新的心跳消息来继续验证， HangOn: %d", light.HangOn)
+		return nil
 	}
+	o := light.buildSetAwayModeMsg()
 	data, err := proto.Marshal(o)
 
 	if err != nil {
 		log.Errorf("build set light data message fail: %s", err.Error())
 		return nil
 	}
+
+	log.Info("=================================================")
 
 	// 设置 IsCmdSent 标志为 true
 	light.IsCmdSent = true
@@ -109,10 +114,11 @@ func (light *Light) BuildProtoBufMessage() []byte {
 
 // SetLightData is a struct
 // brightness: 亮度，color: 色温,  ServerMessage_SetLightData
-func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage_SetLightData_ {
-	log.Info("=============================================")
+func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage {
+
 	seed := commontool.RandInt64(0, 10)
 	var content string
+	var lightData *lightT1012.ServerMessage_SetLightData_
 	// seed 随机数产生的范围是 0 到 9 共 10 个数字，则用 30%的概率去执行开关灯， 剩下的执行调节亮度色温
 	if seed < 3 {
 		var nextStatus *lightT1012.LIGHT_ONOFF_STATUS
@@ -135,41 +141,55 @@ func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage_SetLightD
 			content = "开灯"
 		}
 
-		return &lightT1012.ServerMessage_SetLightData_{
+		lightData = &lightT1012.ServerMessage_SetLightData_{
 			SetLightData: &lightT1012.ServerMessage_SetLightData{
 				Type:        lightT1012.CmdType_REMOTE_SET_LIGHTING_PARA.Enum(),
 				OnoffStatus: nextStatus,
 			},
 		}
-	}
+	} else {
+		// 调节亮度和色温, 随机产生亮度和色温的值
+		brightness := uint32(commontool.RandInt64(0, 101))
+		color := uint32(commontool.RandInt64(0, 101))
+		light.lum = brightness
+		light.colorTemp = color
+		light.status = 1
+		log.Infof("执行调节亮度色温操作, lum: %d, colorTemp: %d", brightness, color)
+		content = "调节亮度和色温"
 
-	// 调节亮度和色温, 随机产生亮度和色温的值
-	brightness := uint32(commontool.RandInt64(0, 101))
-	color := uint32(commontool.RandInt64(0, 101))
-	light.lum = brightness
-	light.colorTemp = color
-	light.status = 1
-	log.Infof("执行调节亮度色温操作, lum: %d, colorTemp: %d", brightness, color)
-	content = "调节亮度和色温"
+		lightData = &lightT1012.ServerMessage_SetLightData_{
+			SetLightData: &lightT1012.ServerMessage_SetLightData{
+				Type: lightT1012.CmdType_REMOTE_SET_LIGHTING_PARA.Enum(),
+				LightCtl: &lightEvent.LampLightLevelCtlMessage{
+					Lum:       proto.Uint32(brightness),
+					ColorTemp: proto.Uint32(color),
+				},
+			},
+		}
+	}
 
 	// 在.csv 结果文件上打个标志
 	result.WriteToResultFile(light.ProdCode, light.DevKEY, "NA", content, "NA")
 
-	return &lightT1012.ServerMessage_SetLightData_{
-		SetLightData: &lightT1012.ServerMessage_SetLightData{
-			Type: lightT1012.CmdType_REMOTE_SET_LIGHTING_PARA.Enum(),
-			LightCtl: &lightEvent.LampLightLevelCtlMessage{
-				Lum:       proto.Uint32(brightness),
-				ColorTemp: proto.Uint32(color),
-			},
-		},
+	o := &lightT1012.ServerMessage{
+		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
+		RemoteMessage: lightData,
 	}
 
+	return o
 }
 
-func (light *Light) buildSetAwayModeMsg(startHours, startMinutes, finishHours, finishMinutes,
-	weekInfo, leaveMode uint32, repetiton, LeaveHomeState bool) []byte {
+func (light *Light) buildSetAwayModeMsg() *lightT1012.ServerMessage {
 	// set away mode msg
+	startTime := time.Now().Add(3 * time.Minute)
+	finishTime := time.Now().Add(13 * time.Minute)
+
+	startHours := uint32(startTime.Hour())
+	startMinutes := uint32(startTime.Minute())
+
+	finishHours := uint32(finishTime.Hour())
+	finishMinutes := uint32(finishTime.Minute())
+
 	awayMod := &lightT1012.ServerMessage_SetAwayMode_Status{
 		SetAwayMode_Status: &lightT1012.ServerMessage_SetAwayMode{
 			Type: lightT1012.CmdType_REMOTE_SET_AWAYMODE_STATUS.Enum(),
@@ -178,10 +198,10 @@ func (light *Light) buildSetAwayModeMsg(startHours, startMinutes, finishHours, f
 				StartMinutes:   proto.Uint32(startMinutes),
 				FinishHours:    proto.Uint32(finishHours),
 				FinishMinutes:  proto.Uint32(finishMinutes),
-				Repetiton:      proto.Bool(repetiton),
-				WeekInfo:       proto.Uint32(weekInfo),
-				LeaveHomeState: proto.Bool(LeaveHomeState),
-				LeaveMode:      proto.Uint32(leaveMode),
+				Repetiton:      proto.Bool(true),
+				WeekInfo:       proto.Uint32(0x01),
+				LeaveHomeState: proto.Bool(true),
+				// LeaveMode:      proto.Uint32(leaveMode), 	// 目前这个字段用不着
 			},
 		},
 	}
@@ -190,13 +210,10 @@ func (light *Light) buildSetAwayModeMsg(startHours, startMinutes, finishHours, f
 		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
 		RemoteMessage: awayMod,
 	}
-	data, err := proto.Marshal(o)
-	if err != nil {
-		log.Errorf("build set leave home mode message fail: %s", err.Error())
-		return nil
-	}
-	log.Debug("build set leave home mode message successfully.")
-	return data
+
+	log.Infof("设置离家模式, 开始时间: %d:%d, 结束时间: %d:%d", startHours, startMinutes, finishHours, finishMinutes)
+
+	return o
 }
 
 // 解析心跳消息
@@ -229,50 +246,94 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 		return
 	}
 
-	// 重置
-	light.IsCmdSent = false
+	// 预先假设测试结果为 passed
+	light.IsTestPassed = true
+
 	// 已解析的心跳数量累加 1
 	light.DecodeHeartBeatMsgQuantity++
+
+	// 先用一个字典来存放测试结果, 注意: 这是一个嵌套Map
+	resultMap := make(map[string]map[string]string)
 
 	var assertFlag string
 	var testContent string
 
 	//  CmdType
-	assertFlag = result.PassedOrFailed(lightT1012.CmdType_DEV_REPORT_STATUS == devBaseInfo.GetType())
+	assertFlag = light.PassedOrFailed(lightT1012.CmdType_DEV_REPORT_STATUS == devBaseInfo.GetType())
 	testContent = fmt.Sprintf("灯泡 %s (%s) CmdType, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, lightT1012.CmdType_DEV_REPORT_STATUS, devBaseInfo.GetType())
-	result.WriteToResultFile(light.ProdCode, light.DevKEY, "CmdType", testContent, assertFlag)
 	log.Info(testContent)
+
+	cmdTypeResultMap := make(map[string]string)
+	cmdTypeResultMap["content"] = testContent
+	cmdTypeResultMap["flag"] = assertFlag
+
+	resultMap["CmdType"] = cmdTypeResultMap
 
 	// Mode
-	assertFlag = result.PassedOrFailed(light.mode == devBaseInfo.GetMode())
+	assertFlag = light.PassedOrFailed(light.mode == devBaseInfo.GetMode())
 	testContent = fmt.Sprintf("灯泡 %s (%s) Mode, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.mode, devBaseInfo.GetMode())
-	result.WriteToResultFile(light.ProdCode, light.DevKEY, "Mode", testContent, assertFlag)
 	log.Info(testContent)
+
+	modeResuleMap := make(map[string]string)
+	modeResuleMap["content"] = testContent
+	modeResuleMap["flag"] = assertFlag
+
+	resultMap["Mode"] = modeResuleMap
 
 	// Status
-	assertFlag = result.PassedOrFailed(light.status == devBaseInfo.GetOnoffStatus())
+	assertFlag = light.PassedOrFailed(light.status == devBaseInfo.GetOnoffStatus())
 	testContent = fmt.Sprintf("灯泡 %s (%s) Status, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.status, devBaseInfo.GetOnoffStatus())
-	result.WriteToResultFile(light.ProdCode, light.DevKEY, "Status", testContent, assertFlag)
 	log.Info(testContent)
+
+	statusResultMap := make(map[string]string)
+	statusResultMap["content"] = testContent
+	statusResultMap["flag"] = assertFlag
+
+	resultMap["Status"] = statusResultMap
 
 	ligthCTRL := devBaseInfo.GetLightCtl()
-	if ligthCTRL == nil {
-		log.Error("GetLightCtl fail")
-		return
+	if ligthCTRL != nil {
+		// lum
+		assertFlag = light.PassedOrFailed(light.lum == ligthCTRL.GetLum())
+		testContent = fmt.Sprintf("灯泡 %s (%s) lum, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.lum, ligthCTRL.GetLum())
+		log.Info(testContent)
+
+		lumResultMap := make(map[string]string)
+		lumResultMap["content"] = testContent
+		lumResultMap["flag"] = assertFlag
+
+		resultMap["Lum"] = lumResultMap
+
+		// 只有 T1012 和 T1013 才有色温
+		if light.ProdCode != "T1011" {
+			assertFlag = light.PassedOrFailed(light.colorTemp == ligthCTRL.GetColorTemp())
+			testContent = fmt.Sprintf("灯泡 %s (%s) ColorTemp, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.colorTemp, ligthCTRL.GetColorTemp())
+			log.Info(testContent)
+
+			colorTempResultMap := make(map[string]string)
+			colorTempResultMap["content"] = testContent
+			colorTempResultMap["flag"] = assertFlag
+
+			resultMap["ColorTemp"] = colorTempResultMap
+
+		}
 	}
 
-	// lum
-	assertFlag = result.PassedOrFailed(light.lum == ligthCTRL.GetLum())
-	testContent = fmt.Sprintf("灯泡 %s (%s) lum, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.lum, ligthCTRL.GetLum())
-	result.WriteToResultFile(light.ProdCode, light.DevKEY, "Lum", testContent, assertFlag)
-	log.Info(testContent)
+	if !light.IsTestPassed {
+		light.HangOn++
+		if light.HangOn < 3 {
+			log.Error("当前测试结果未能通过， 需等待下一轮心跳验证")
+			return
+		}
+	}
 
-	// 只有 T1012 和 T1013 才有色温
-	if light.ProdCode != "T1011" {
-		assertFlag = result.PassedOrFailed(light.colorTemp == ligthCTRL.GetColorTemp())
-		testContent = fmt.Sprintf("灯泡 %s (%s) ColorTemp, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.colorTemp, ligthCTRL.GetColorTemp())
-		result.WriteToResultFile(light.ProdCode, light.DevKEY, "ColorTemp", testContent, assertFlag)
-		log.Info(testContent)
+	// 重置
+	light.IsCmdSent = false
+	light.HangOn = 0
+
+	// 写入 csv 文件
+	for key, m := range resultMap {
+		result.WriteToResultFile(light.ProdCode, light.DevKEY, key, m["content"], m["flag"])
 	}
 
 }

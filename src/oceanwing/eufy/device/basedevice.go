@@ -38,6 +38,16 @@ type baseDevice struct {
 	SubTopicl                  string
 	SubMessage                 chan []byte
 	IsCmdSent                  bool
+	IsTestPassed               bool
 	CmdSentQuantity            int //下发的指令数量
 	DecodeHeartBeatMsgQuantity int //解析的心跳消息数量
+	HangOn                     int
+}
+
+func (b *baseDevice) PassedOrFailed(flag bool) string {
+	if flag {
+		return "Passed"
+	}
+	b.IsTestPassed = false
+	return "Failed"
 }

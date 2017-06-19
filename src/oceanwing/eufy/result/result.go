@@ -57,11 +57,3 @@ func handleIncomingContent() {
 		}
 	}()
 }
-
-// PassedOrFailed 把 true 或 false 转化为 Passed 或 Failed
-func PassedOrFailed(flag bool) string {
-	if flag {
-		return "Passed"
-	}
-	return "Failed"
-}

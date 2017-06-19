@@ -26,7 +26,6 @@ type RobotCleaner struct {
 	returnCharge   bool
 	expResultIndex byte
 	expResultValue byte
-	hangOn         int
 	caseNum        int
 	checkPoint     string
 }
@@ -109,17 +108,17 @@ func (robot *RobotCleaner) HandleSubscribeMessage() {
 					if robot.IsCmdSent && robot.expResultIndex != 99 {
 						var assertFlag string
 						if heartBeatInfo[robot.expResultIndex] != robot.expResultValue {
-							robot.hangOn++
-							if robot.hangOn == 3 {
+							robot.HangOn++
+							if robot.HangOn == 3 {
 								assertFlag = "Failed"
-								robot.hangOn = 0
+								robot.HangOn = 0
 							}
 						} else {
 							assertFlag = "Passed"
-							robot.hangOn = 0
+							robot.HangOn = 0
 						}
 
-						if robot.hangOn == 0 {
+						if robot.HangOn == 0 {
 							testContent := fmt.Sprintf("%s, 预期: %s, 结果: %s", robot.checkPoint, strconv.Itoa(int(robot.expResultValue)),
 								strconv.Itoa(int(heartBeatInfo[robot.expResultIndex])))
 							result.WriteToResultFile(robot.ProdCode, robot.DevKEY, robot.checkPoint, testContent, assertFlag)
@@ -172,7 +171,7 @@ func (robot *RobotCleaner) SendPayload(pl []byte) {
 func (robot *RobotCleaner) BuildProtoBufMessage() []byte {
 	var payload []byte
 	// 如果hangOn不为0，则表示机器人对前次发的指令响应的结果不正确，需等待下次心跳继续验证，不要发新指令过去
-	if robot.hangOn != 0 {
+	if robot.HangOn != 0 {
 		return nil
 	}
 
