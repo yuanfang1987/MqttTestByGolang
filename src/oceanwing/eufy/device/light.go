@@ -110,6 +110,7 @@ func (light *Light) BuildProtoBufMessage() []byte {
 // SetLightData is a struct
 // brightness: 亮度，color: 色温,  ServerMessage_SetLightData
 func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage_SetLightData_ {
+	log.Info("=============================================")
 	seed := commontool.RandInt64(0, 10)
 	var content string
 	// seed 随机数产生的范围是 0 到 9 共 10 个数字，则用 30%的概率去执行开关灯， 剩下的执行调节亮度色温
@@ -119,10 +120,10 @@ func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage_SetLightD
 		if light.status == lightT1012.LIGHT_ONOFF_STATUS_ON {
 			nextStatus = lightT1012.LIGHT_ONOFF_STATUS_OFF.Enum()
 			log.Info("关灯")
-			// 关灯后， 亮度和色温都应该变成 0
+			// 关灯后， 亮度变成 0, 色温保持和关灯前一样
 			light.status = 0
 			light.lum = 0
-			light.colorTemp = 0
+			// light.colorTemp = 0
 			content = "关灯"
 		} else {
 			nextStatus = lightT1012.LIGHT_ONOFF_STATUS_ON.Enum()
