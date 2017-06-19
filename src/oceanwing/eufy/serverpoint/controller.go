@@ -37,8 +37,6 @@ func (s *MqttServerPoint) SetupRunningDevices(keys []string) {
 		switch codeAndKey[0] {
 		case "T1012", "T1011":
 			dev = device.NewLight(codeAndKey[0], codeAndKey[1])
-		case "T2103":
-			dev = device.NewRobotCleaner(codeAndKey[0], codeAndKey[1])
 		}
 		log.Debugf("Create a %s device, Key: %s", codeAndKey[0], codeAndKey[1])
 		dev.HandleSubscribeMessage()
@@ -52,7 +50,7 @@ func (s *MqttServerPoint) RunMqttService(clientid, username, pwd, broker string,
 	s.Username = username
 	s.Pwd = pwd
 	s.Broker = broker
-	s.SubTopic = "DEVICE/+/+/PUH_MESSAGE" // T1012
+	s.SubTopic = "DEVICE/T1012/A117193C01D7616C/SUB_MESSAGE" // T1012, PUH_MESSAGE
 	s.NeedCA = ca
 	s.SubHandler = func(c MQTT.Client, msg MQTT.Message) {
 		go s.distributeMsg(msg)
@@ -64,11 +62,11 @@ func (s *MqttServerPoint) RunMqttService(clientid, username, pwd, broker string,
 // 分发订阅到的消息给对应的 device 去处理
 func (s *MqttServerPoint) distributeMsg(message MQTT.Message) {
 	t := message.Topic()
-	payload := message.Payload()
+	log.Debugf("收到订阅的消息，主题为：%s", t)
 	for _, dev := range s.devices {
-		if t == dev.GetSubTopic() {
+		if t == dev.GetSubTopic() || t == dev.GetSubTopicServer() {
 			//log.Debugf("send incoming message to device: %s, message id: %d", light.devKEY, message.MessageID())
-			dev.SendPayload(payload)
+			dev.SendPayload(message)
 			return
 		}
 	}

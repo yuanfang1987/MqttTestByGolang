@@ -6,6 +6,7 @@ import (
 	"oceanwing/commontool"
 
 	log "github.com/cihub/seelog"
+	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/golang/protobuf/proto"
 	serverAwayMode "oceanwing/eufy/protobuf.lib/common/server/awaymode"
 	lightEvent "oceanwing/eufy/protobuf.lib/light/lightevent"
@@ -15,10 +16,11 @@ import (
 // Light 灯泡类产品的一个 struct 描述，包括 T1011,T1012,T1013
 type Light struct {
 	baseDevice
-	mode      lightT1012.DeviceMessage_ReportDevBaseInfo_LIGHT_DEV_MODE
-	status    lightT1012.LIGHT_ONOFF_STATUS
-	lum       uint32
-	colorTemp uint32
+	mode           lightT1012.DeviceMessage_ReportDevBaseInfo_LIGHT_DEV_MODE
+	status         lightT1012.LIGHT_ONOFF_STATUS
+	lum            uint32
+	colorTemp      uint32
+	subServerTopic string
 }
 
 // NewLight 新建一个 Light 实例
@@ -30,8 +32,9 @@ func NewLight(prodCode, devKey string) EufyDevice {
 	o.ProdCode = prodCode
 	o.DevKEY = devKey
 	o.PubTopicl = "DEVICE/T1012/" + devKey + "/SUB_MESSAGE"
-	o.SubTopicl = "DEVICE/T1012/" + devKey + "/PUH_MESSAGE"
-	o.SubMessage = make(chan []byte)
+	o.SubTopicl = "DEVICE/T1012/" + devKey + "/PUH_MESSAGE"      // 订阅设备的消息
+	o.subServerTopic = "DEVICE/T1012/" + devKey + "/SUB_MESSAGE" //订阅服务器的消息
+	o.SubMessage = make(chan MQTT.Message)
 	return o
 }
 
@@ -43,7 +46,7 @@ func (light *Light) HandleSubscribeMessage() {
 			select {
 			case msg := <-light.SubMessage:
 				log.Infof("get new incoming message from device: %s", light.DevKEY)
-				light.unMarshalHeartBeatMsg(msg)
+				light.unMarshalAllMessage(msg)
 			}
 		}
 	}()
@@ -52,6 +55,11 @@ func (light *Light) HandleSubscribeMessage() {
 // GetSubTopic 实现 EufyDevice 接口
 func (light *Light) GetSubTopic() string {
 	return light.SubTopicl
+}
+
+// GetSubTopicServer 实现 EufyDevice 接口
+func (light *Light) GetSubTopicServer() string {
+	return light.subServerTopic
 }
 
 // GetPubTopic 实现 EufyDevice 接口
@@ -80,8 +88,8 @@ func (light *Light) GetDecodedheartBeat() int {
 }
 
 // SendPayload 实现 EufyDevice 接口
-func (light *Light) SendPayload(pl []byte) {
-	light.SubMessage <- pl
+func (light *Light) SendPayload(msg MQTT.Message) {
+	light.SubMessage <- msg
 }
 
 // BuildProtoBufMessage 实现 EufyDevice 接口
@@ -184,7 +192,7 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 
 	noneParaMsg := deviceMsg.GetNonParaMsg()
 	if noneParaMsg != nil {
-		log.Infof("Cmd type of Non_ParamMsg: %d", noneParaMsg.GetType())
+		log.Infof("无参数消息的指令: %s", lightT1012.CmdType_name[int32(noneParaMsg.GetType())])
 	}
 
 	devBaseInfo := deviceMsg.GetReportDevBaseInfo()
@@ -198,13 +206,16 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 	// --------------------- 取出结果 --------------------------------------------
 
 	//  CmdType
-	log.Infof("灯泡 %s (%s) 指令类型: %d", light.DevKEY, light.ProdCode, devBaseInfo.GetType())
+	cmd := lightT1012.CmdType_name[int32(devBaseInfo.GetType())]
+	log.Infof("灯泡 %s (%s) 指令类型: %s", light.DevKEY, light.ProdCode, cmd)
 
 	// Mode
-	log.Infof("灯泡 %s (%s) 模式: %d", light.DevKEY, light.ProdCode, devBaseInfo.GetMode())
+	modeName := lightT1012.DeviceMessage_ReportDevBaseInfo_LIGHT_DEV_MODE_name[int32(devBaseInfo.GetMode())]
+	log.Infof("灯泡 %s (%s) 模式: %s", light.DevKEY, light.ProdCode, modeName)
 
 	// Status
-	log.Infof("灯泡 %s (%s) 状态: %d", light.DevKEY, light.ProdCode, devBaseInfo.GetOnoffStatus())
+	status := lightT1012.LIGHT_ONOFF_STATUS_name[int32(devBaseInfo.GetOnoffStatus())]
+	log.Infof("灯泡 %s (%s) 状态: %s", light.DevKEY, light.ProdCode, status)
 
 	ligthCTRL := devBaseInfo.GetLightCtl()
 	if ligthCTRL == nil {
@@ -236,7 +247,8 @@ func (light *Light) unMarshalServerMsg(incomingPayload []byte) {
 	// SetLightData
 	setlightdata := serMsg.GetSetLightData()
 	if setlightdata != nil {
-		log.Infof("CmdType: %d", setlightdata.GetType())
+		cmd := lightT1012.CmdType_name[int32(setlightdata.GetType())]
+		log.Infof("CmdType: %s", cmd)
 
 		lightctrl := setlightdata.GetLightCtl()
 		if lightctrl != nil {
@@ -244,7 +256,23 @@ func (light *Light) unMarshalServerMsg(incomingPayload []byte) {
 			log.Infof("ColorTemp: %d", lightctrl.GetColorTemp())
 		}
 
-		log.Infof("OnOff Status: %d", setlightdata.GetOnoffStatus())
+		status := lightT1012.LIGHT_ONOFF_STATUS_name[int32(setlightdata.GetOnoffStatus())]
+		log.Infof("OnOff Status: %s", status)
 	}
 
+}
+
+func (light *Light) unMarshalAllMessage(msg MQTT.Message) {
+	t := msg.Topic()
+	payload := msg.Payload()
+
+	if light.SubTopicl == t {
+		// 设备心跳消息
+		log.Info("----- 这是一个来自设备的心跳消息----------")
+		light.unMarshalHeartBeatMsg(payload)
+	} else if light.subServerTopic == t {
+		//服务器消息
+		log.Info("-------这是一个来自服务器的控制消息---------")
+		light.unMarshalServerMsg(payload)
+	}
 }
