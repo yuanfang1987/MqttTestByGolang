@@ -30,7 +30,6 @@ func main() {
 	// 初始日志实例
 	commontool.InitLogInstance(config.GetString(config.LogLevel))
 
-	log.Info("=========================== Starting a new Eufy Device functional testing =========================")
 	log.Infof("broker: %s", broker)
 	log.Infof("interval: %d", interval)
 	log.Infof("device key: %s", codeKeys)
@@ -40,9 +39,6 @@ func main() {
 		capath := config.GetString(config.MqttCAFile)
 		commontool.BuildTlSConfig(capath)
 	}
-
-	// 新建csv文件用于存放测试结果
-	// result.NewResultFile("./EufyDeviceFuntionalTest.csv")
 
 	go func() {
 		// create a new cleaner
@@ -56,7 +52,6 @@ func main() {
 		for {
 			select {
 			case <-heartBeatInterval:
-				//eufyServer.PublishMsgToBroker()
 				log.Infof("%d seconds pass...", interval)
 			}
 		}
@@ -66,5 +61,4 @@ func main() {
 	signal.Notify(channelSignal, os.Interrupt)
 	signal.Notify(channelSignal, syscall.SIGTERM)
 	<-channelSignal
-	// serverpoint.HappyEnding()
 }

@@ -2,9 +2,7 @@ package serverpoint
 
 import (
 	"oceanwing/eufy/device"
-	"oceanwing/eufy/result"
 	"oceanwing/mqttclient"
-	"strconv"
 	"strings"
 
 	log "github.com/cihub/seelog"
@@ -44,7 +42,7 @@ func (s *MqttServerPoint) SetupRunningDevices(keys []string) {
 	}
 }
 
-// RunMqttService hh.
+// RunMqttService hh..
 func (s *MqttServerPoint) RunMqttService(clientid, username, pwd, broker string, ca bool) {
 	s.Clientid = clientid
 	s.Username = username
@@ -64,37 +62,9 @@ func (s *MqttServerPoint) distributeMsg(message MQTT.Message) {
 	t := message.Topic()
 	log.Debugf("收到订阅的消息，主题为：%s", t)
 	for _, dev := range s.devices {
-		if t == dev.GetSubTopic() || t == dev.GetSubTopicServer() {
-			//log.Debugf("send incoming message to device: %s, message id: %d", light.devKEY, message.MessageID())
+		if t == dev.GetSubDeviceTopic() || t == dev.GetSubServerTopic() {
 			dev.SendPayload(message)
 			return
 		}
 	}
-}
-
-// PublishMsgToBroker 发布指令到Broker上，由Broker推送给Device
-func (s *MqttServerPoint) PublishMsgToBroker() {
-	if len(s.devices) == 0 {
-		log.Error("No device found.")
-		return
-	}
-
-	for _, dev := range s.devices {
-		s.PubTopic = dev.GetPubTopic()
-		payload := dev.BuildProtoBufMessage()
-		if payload == nil || len(payload) == 0 {
-			continue
-		}
-		s.MqttClient.PublishMessage(payload)
-	}
-}
-
-// HappyEnding 用于把每个设备发出的指令数、解析的心跳数，写入结果文件
-func HappyEnding() {
-	log.Info("测试结束")
-	for _, dev := range servPointInstance.devices {
-		result.WriteToResultFile(dev.GetProductCode(), dev.GetProductKey(), "SentCmd", strconv.Itoa(dev.GetSentCmds()),
-			"Decoded heart Beat", strconv.Itoa(dev.GetDecodedheartBeat()))
-	}
-	result.CloseResultFile()
 }

@@ -1,26 +1,19 @@
 package device
 
 import (
-	"math"
-	"math/rand"
-	"oceanwing/commontool"
-
 	log "github.com/cihub/seelog"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/golang/protobuf/proto"
-	serverAwayMode "oceanwing/eufy/protobuf.lib/common/server/awaymode"
-	lightEvent "oceanwing/eufy/protobuf.lib/light/lightevent"
 	lightT1012 "oceanwing/eufy/protobuf.lib/light/t1012"
 )
 
 // Light 灯泡类产品的一个 struct 描述，包括 T1011,T1012,T1013
 type Light struct {
 	baseDevice
-	mode           lightT1012.DeviceMessage_ReportDevBaseInfo_LIGHT_DEV_MODE
-	status         lightT1012.LIGHT_ONOFF_STATUS
-	lum            uint32
-	colorTemp      uint32
-	subServerTopic string
+	mode      lightT1012.DeviceMessage_ReportDevBaseInfo_LIGHT_DEV_MODE
+	status    lightT1012.LIGHT_ONOFF_STATUS
+	lum       uint32
+	colorTemp uint32
 }
 
 // NewLight 新建一个 Light 实例
@@ -31,9 +24,8 @@ func NewLight(prodCode, devKey string) EufyDevice {
 	}
 	o.ProdCode = prodCode
 	o.DevKEY = devKey
-	o.PubTopicl = "DEVICE/T1012/" + devKey + "/SUB_MESSAGE"
-	o.SubTopicl = "DEVICE/T1012/" + devKey + "/PUH_MESSAGE"      // 订阅设备的消息
-	o.subServerTopic = "DEVICE/T1012/" + devKey + "/SUB_MESSAGE" //订阅服务器的消息
+	o.SubDeviceTopic = "DEVICE/T1012/" + devKey + "/PUH_MESSAGE" // 订阅设备的消息
+	o.SubServerTopic = "DEVICE/T1012/" + devKey + "/SUB_MESSAGE" //订阅服务器的消息
 	o.SubMessage = make(chan MQTT.Message)
 	return o
 }
@@ -50,135 +42,6 @@ func (light *Light) HandleSubscribeMessage() {
 			}
 		}
 	}()
-}
-
-// GetSubTopic 实现 EufyDevice 接口
-func (light *Light) GetSubTopic() string {
-	return light.SubTopicl
-}
-
-// GetSubTopicServer 实现 EufyDevice 接口
-func (light *Light) GetSubTopicServer() string {
-	return light.subServerTopic
-}
-
-// GetPubTopic 实现 EufyDevice 接口
-func (light *Light) GetPubTopic() string {
-	return light.PubTopicl
-}
-
-// GetProductCode 实现 EufyDevice 接口
-func (light *Light) GetProductCode() string {
-	return light.ProdCode
-}
-
-// GetProductKey 实现 EufyDevice 接口
-func (light *Light) GetProductKey() string {
-	return light.DevKEY
-}
-
-// GetSentCmds 实现 EufyDevice 接口
-func (light *Light) GetSentCmds() int {
-	return light.CmdSentQuantity
-}
-
-// GetDecodedheartBeat 实现 EufyDevice 接口
-func (light *Light) GetDecodedheartBeat() int {
-	return light.DecodeHeartBeatMsgQuantity
-}
-
-// SendPayload 实现 EufyDevice 接口
-func (light *Light) SendPayload(msg MQTT.Message) {
-	light.SubMessage <- msg
-}
-
-// BuildProtoBufMessage 实现 EufyDevice 接口
-func (light *Light) BuildProtoBufMessage() []byte {
-	// 随机产生亮度和色温的值
-	brightness := uint32(commontool.RandInt64(0, 101))
-	color := uint32(commontool.RandInt64(0, 101))
-	// 随机产生是否开灯的值，只有两个可选值： 0 和 1
-	var onOffStatus *lightT1012.LIGHT_ONOFF_STATUS
-	onOffValue := uint32(commontool.RandInt64(0, 2))
-	if onOffValue == 1 {
-		onOffStatus = lightT1012.LIGHT_ONOFF_STATUS_ON.Enum()
-	} else {
-		onOffStatus = lightT1012.LIGHT_ONOFF_STATUS_OFF.Enum()
-	}
-	// 设置 IsCmdSent 标志为 true
-	light.IsCmdSent = true
-	// 已下发的指令数量累加 1
-	light.CmdSentQuantity++
-	return light.buildSetLightDataMsg(brightness, color, onOffStatus)
-}
-
-func (light *Light) buildSetLightDataMsg(brightness, color uint32, status *lightT1012.LIGHT_ONOFF_STATUS) []byte {
-	o := &lightT1012.ServerMessage{
-		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
-		RemoteMessage: setLightBrightAndColor(brightness, color, status),
-	}
-	data, err := proto.Marshal(o)
-	if err != nil {
-		log.Errorf("build set light data message fail: %s", err.Error())
-		return nil
-	}
-	log.Debugf("build set light data message successfully, brightness: %d, color: %d", brightness, color)
-	// 确保 Marshal 成功后，再更改 lightProd 的值
-	light.lum = brightness
-	light.colorTemp = color
-	if status == lightT1012.LIGHT_ONOFF_STATUS_ON.Enum() {
-		light.status = 1
-	} else {
-		light.status = 0
-	}
-	return data
-}
-
-// SetLightData is a struct
-// brightness: 亮度，color: 色温,  ServerMessage_SetLightData
-func setLightBrightAndColor(brightness, color uint32, status *lightT1012.LIGHT_ONOFF_STATUS) *lightT1012.ServerMessage_SetLightData_ {
-	return &lightT1012.ServerMessage_SetLightData_{
-		SetLightData: &lightT1012.ServerMessage_SetLightData{
-			Type: lightT1012.CmdType_REMOTE_SET_LIGHTING_PARA.Enum(),
-			LightCtl: &lightEvent.LampLightLevelCtlMessage{
-				Lum:       proto.Uint32(brightness),
-				ColorTemp: proto.Uint32(color),
-			},
-			OnoffStatus: status,
-		},
-	}
-}
-
-func (light *Light) buildSetAwayModeMsg(startHours, startMinutes, finishHours, finishMinutes,
-	weekInfo, leaveMode uint32, repetiton, LeaveHomeState bool) []byte {
-	// set away mode msg
-	awayMod := &lightT1012.ServerMessage_SetAwayMode_Status{
-		SetAwayMode_Status: &lightT1012.ServerMessage_SetAwayMode{
-			Type: lightT1012.CmdType_REMOTE_SET_AWAYMODE_STATUS.Enum(),
-			SyncLeaveModeMsg: &serverAwayMode.LeaveHomeMessage{
-				StartHours:     proto.Uint32(startHours),
-				StartMinutes:   proto.Uint32(startMinutes),
-				FinishHours:    proto.Uint32(finishHours),
-				FinishMinutes:  proto.Uint32(finishMinutes),
-				Repetiton:      proto.Bool(repetiton),
-				WeekInfo:       proto.Uint32(weekInfo),
-				LeaveHomeState: proto.Bool(LeaveHomeState),
-				LeaveMode:      proto.Uint32(leaveMode),
-			},
-		},
-	}
-
-	o := &lightT1012.ServerMessage{
-		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
-		RemoteMessage: awayMod,
-	}
-	data, err := proto.Marshal(o)
-	if err != nil {
-		log.Errorf("build set leave home mode message fail: %s", err.Error())
-		return nil
-	}
-	log.Debug("build set leave home mode message successfully.")
-	return data
 }
 
 // 解析心跳消息
@@ -336,7 +199,7 @@ func (light *Light) unMarshalServerMsg(incomingPayload []byte) {
 			log.Infof("------离家模式, 开始时间  %d:%d", leaveMsg.GetStartHours(), leaveMsg.GetStartMinutes())
 			log.Infof("------离家模式, 结束时间  %d:%d", leaveMsg.GetFinishHours(), leaveMsg.GetFinishMinutes())
 			log.Infof("------离家模式, 是否重复: %t", leaveMsg.GetRepetiton())
-			log.Infof("------离家模式, WeekInfo: %d", leaveMsg.GetWeekInfo())
+			log.Infof("------离家模式, WeekInfo: %s", convertToWeekDay(leaveMsg.GetWeekInfo()))
 			log.Infof("------离家模式, 是否开启: %t", leaveMsg.GetLeaveHomeState())
 		}
 	}
@@ -347,11 +210,11 @@ func (light *Light) unMarshalAllMessage(msg MQTT.Message) {
 	t := msg.Topic()
 	payload := msg.Payload()
 
-	if light.SubTopicl == t {
+	if light.SubDeviceTopic == t {
 		// 设备心跳消息
 		log.Info("----- 这是一个来自设备的心跳消息----------")
 		light.unMarshalHeartBeatMsg(payload)
-	} else if light.subServerTopic == t {
+	} else if light.SubServerTopic == t {
 		//服务器消息
 		log.Info("-------这是一个来自服务器的控制消息---------")
 		light.unMarshalServerMsg(payload)
