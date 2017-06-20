@@ -149,6 +149,8 @@ func (light *Light) buildSetAwayModeMsg() *lightT1012.ServerMessage {
 	startTime := time.Now().Add(3 * time.Minute)
 	finishTime := time.Now().Add(13 * time.Minute)
 
+	weekday := getWeekDayValue(int(startTime.Weekday()))
+
 	startHours := uint32(startTime.Hour())
 	startMinutes := uint32(startTime.Minute())
 
@@ -164,7 +166,7 @@ func (light *Light) buildSetAwayModeMsg() *lightT1012.ServerMessage {
 				FinishHours:    proto.Uint32(finishHours),
 				FinishMinutes:  proto.Uint32(finishMinutes),
 				Repetiton:      proto.Bool(true),
-				WeekInfo:       proto.Uint32(2),
+				WeekInfo:       proto.Uint32(weekday),
 				LeaveHomeState: proto.Bool(true),
 				// LeaveMode:      proto.Uint32(leaveMode), 	// 目前这个字段用不着
 			},
@@ -301,4 +303,25 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 		result.WriteToResultFile(light.ProdCode, light.DevKEY, key, m["content"], m["flag"])
 	}
 
+}
+
+func getWeekDayValue(v int) uint32 {
+	var re uint32
+	switch v {
+	case 0:
+		re = 64
+	case 1:
+		re = 1
+	case 2:
+		re = 2
+	case 3:
+		re = 4
+	case 4:
+		re = 8
+	case 5:
+		re = 16
+	case 6:
+		re = 32
+	}
+	return re
 }
