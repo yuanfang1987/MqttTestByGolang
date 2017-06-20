@@ -44,6 +44,34 @@ type baseDevice struct {
 	HangOn                     int
 }
 
+func (b *baseDevice) GetSubTopic() string {
+	return b.SubTopicl
+}
+
+func (b *baseDevice) GetPubTopic() string {
+	return b.PubTopicl
+}
+
+func (b *baseDevice) GetProductCode() string {
+	return b.ProdCode
+}
+
+func (b *baseDevice) GetProductKey() string {
+	return b.DevKEY
+}
+
+func (b *baseDevice) GetSentCmds() int {
+	return b.CmdSentQuantity
+}
+
+func (b *baseDevice) GetDecodedheartBeat() int {
+	return b.DecodeHeartBeatMsgQuantity
+}
+
+func (b *baseDevice) SendPayload(payload []byte) {
+	b.SubMessage <- payload
+}
+
 func (b *baseDevice) PassedOrFailed(flag bool) string {
 	if flag {
 		return "Passed"

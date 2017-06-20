@@ -53,39 +53,39 @@ func (light *Light) HandleSubscribeMessage() {
 }
 
 // GetSubTopic 实现 EufyDevice 接口
-func (light *Light) GetSubTopic() string {
-	return light.SubTopicl
-}
+// func (light *Light) GetSubTopic() string {
+// 	return light.SubTopicl
+// }
 
 // GetPubTopic 实现 EufyDevice 接口
-func (light *Light) GetPubTopic() string {
-	return light.PubTopicl
-}
+// func (light *Light) GetPubTopic() string {
+// 	return light.PubTopicl
+// }
 
 // GetProductCode 实现 EufyDevice 接口
-func (light *Light) GetProductCode() string {
-	return light.ProdCode
-}
+// func (light *Light) GetProductCode() string {
+// 	return light.ProdCode
+// }
 
 // GetProductKey 实现 EufyDevice 接口
-func (light *Light) GetProductKey() string {
-	return light.DevKEY
-}
+// func (light *Light) GetProductKey() string {
+// 	return light.DevKEY
+// }
 
 // GetSentCmds 实现 EufyDevice 接口
-func (light *Light) GetSentCmds() int {
-	return light.CmdSentQuantity
-}
+// func (light *Light) GetSentCmds() int {
+// 	return light.CmdSentQuantity
+// }
 
 // GetDecodedheartBeat 实现 EufyDevice 接口
-func (light *Light) GetDecodedheartBeat() int {
-	return light.DecodeHeartBeatMsgQuantity
-}
+// func (light *Light) GetDecodedheartBeat() int {
+// 	return light.DecodeHeartBeatMsgQuantity
+// }
 
 // SendPayload 实现 EufyDevice 接口
-func (light *Light) SendPayload(pl []byte) {
-	light.SubMessage <- pl
-}
+// func (light *Light) SendPayload(pl []byte) {
+// 	light.SubMessage <- pl
+// }
 
 // BuildProtoBufMessage 实现 EufyDevice 接口
 func (light *Light) BuildProtoBufMessage() []byte {
