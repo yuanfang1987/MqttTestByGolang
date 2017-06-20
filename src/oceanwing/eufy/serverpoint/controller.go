@@ -91,7 +91,7 @@ func (s *MqttServerPoint) PublishMsgToBroker() {
 	}
 }
 
-// HappyEnding 用于把每个设备发出的指令数、解析的心跳数，写入结果文件
+// HappyEnding 用于把每个设备发出的指令数、解析的心跳数，写入结果文件.
 func HappyEnding() {
 	log.Info("测试结束")
 	for _, dev := range servPointInstance.devices {

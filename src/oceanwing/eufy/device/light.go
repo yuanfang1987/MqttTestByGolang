@@ -52,41 +52,6 @@ func (light *Light) HandleSubscribeMessage() {
 	}()
 }
 
-// GetSubTopic 实现 EufyDevice 接口
-// func (light *Light) GetSubTopic() string {
-// 	return light.SubTopicl
-// }
-
-// GetPubTopic 实现 EufyDevice 接口
-// func (light *Light) GetPubTopic() string {
-// 	return light.PubTopicl
-// }
-
-// GetProductCode 实现 EufyDevice 接口
-// func (light *Light) GetProductCode() string {
-// 	return light.ProdCode
-// }
-
-// GetProductKey 实现 EufyDevice 接口
-// func (light *Light) GetProductKey() string {
-// 	return light.DevKEY
-// }
-
-// GetSentCmds 实现 EufyDevice 接口
-// func (light *Light) GetSentCmds() int {
-// 	return light.CmdSentQuantity
-// }
-
-// GetDecodedheartBeat 实现 EufyDevice 接口
-// func (light *Light) GetDecodedheartBeat() int {
-// 	return light.DecodeHeartBeatMsgQuantity
-// }
-
-// SendPayload 实现 EufyDevice 接口
-// func (light *Light) SendPayload(pl []byte) {
-// 	light.SubMessage <- pl
-// }
-
 // BuildProtoBufMessage 实现 EufyDevice 接口
 func (light *Light) BuildProtoBufMessage() []byte {
 	// 如果上一次的测试结果没有通过，则被挂起，则先不要发新的指令过去
@@ -94,7 +59,7 @@ func (light *Light) BuildProtoBufMessage() []byte {
 		log.Warnf("上一次测试未通过，需等待新的心跳消息来继续验证， HangOn: %d", light.HangOn)
 		return nil
 	}
-	o := light.buildSetAwayModeMsg()
+	o := light.setLightBrightAndColor()
 	data, err := proto.Marshal(o)
 
 	if err != nil {

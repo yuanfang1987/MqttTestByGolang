@@ -132,41 +132,6 @@ func (robot *RobotCleaner) HandleSubscribeMessage() {
 	}()
 }
 
-// GetSubTopic 实现 EufyDevice 接口
-func (robot *RobotCleaner) GetSubTopic() string {
-	return robot.SubTopicl
-}
-
-// GetPubTopic 实现 EufyDevice 接口
-func (robot *RobotCleaner) GetPubTopic() string {
-	return robot.PubTopicl
-}
-
-// GetProductCode 实现 EufyDevice 接口
-func (robot *RobotCleaner) GetProductCode() string {
-	return robot.ProdCode
-}
-
-// GetProductKey 实现 EufyDevice 接口
-func (robot *RobotCleaner) GetProductKey() string {
-	return robot.DevKEY
-}
-
-// GetSentCmds 实现 EufyDevice 接口
-func (robot *RobotCleaner) GetSentCmds() int {
-	return robot.CmdSentQuantity
-}
-
-// GetDecodedheartBeat 实现 EufyDevice 接口
-func (robot *RobotCleaner) GetDecodedheartBeat() int {
-	return robot.DecodeHeartBeatMsgQuantity
-}
-
-// SendPayload 实现 EufyDevice 接口
-func (robot *RobotCleaner) SendPayload(pl []byte) {
-	robot.SubMessage <- pl
-}
-
 // BuildProtoBufMessage 实现 EufyDevice 接口
 func (robot *RobotCleaner) BuildProtoBufMessage() []byte {
 	var payload []byte
