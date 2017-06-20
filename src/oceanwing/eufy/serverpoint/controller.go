@@ -50,7 +50,7 @@ func (s *MqttServerPoint) RunMqttService(clientid, username, pwd, broker string,
 	s.Username = username
 	s.Pwd = pwd
 	s.Broker = broker
-	s.SubTopic = "DEVICE/T1012/A117193C01D7616C/SUB_MESSAGE" // T1012, PUH_MESSAGE
+	s.SubTopic = "DEVICE/+/+/+" // T1012, PUH_MESSAGE
 	s.NeedCA = ca
 	s.SubHandler = func(c MQTT.Client, msg MQTT.Message) {
 		go s.distributeMsg(msg)
