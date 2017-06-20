@@ -164,7 +164,7 @@ func (light *Light) buildSetAwayModeMsg() *lightT1012.ServerMessage {
 				FinishHours:    proto.Uint32(finishHours),
 				FinishMinutes:  proto.Uint32(finishMinutes),
 				Repetiton:      proto.Bool(true),
-				WeekInfo:       proto.Uint32(0x01),
+				WeekInfo:       proto.Uint32(2),
 				LeaveHomeState: proto.Bool(true),
 				// LeaveMode:      proto.Uint32(leaveMode), 	// 目前这个字段用不着
 			},
