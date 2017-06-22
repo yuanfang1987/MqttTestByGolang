@@ -59,7 +59,7 @@ func (light *Light) BuildProtoBufMessage() []byte {
 		log.Warnf("上一次测试未通过，需等待新的心跳消息来继续验证， HangOn: %d", light.HangOn)
 		return nil
 	}
-	o := light.setLightBrightAndColor()
+	o := light.buildSetAwayModeMsg()
 	data, err := proto.Marshal(o)
 
 	if err != nil {
@@ -149,7 +149,12 @@ func (light *Light) buildSetAwayModeMsg() *lightT1012.ServerMessage {
 	startTime := time.Now().Add(3 * time.Minute)
 	finishTime := time.Now().Add(13 * time.Minute)
 
-	weekday := getWeekDayValue(int(startTime.Weekday()))
+	// weekday := getWeekDayValue(int(startTime.Weekday()))
+
+	weekday := int64(startTime.Weekday())
+	ss := []int64{weekday}
+	bb := buildWeekdays(ss)
+	log.Debugf("weekday: %d", bb)
 
 	startHours := uint32(startTime.Hour())
 	startMinutes := uint32(startTime.Minute())
@@ -166,7 +171,7 @@ func (light *Light) buildSetAwayModeMsg() *lightT1012.ServerMessage {
 				FinishHours:    proto.Uint32(finishHours),
 				FinishMinutes:  proto.Uint32(finishMinutes),
 				Repetiton:      proto.Bool(true),
-				WeekInfo:       proto.Uint32(weekday),
+				WeekInfo:       proto.Uint32(bb),
 				LeaveHomeState: proto.Bool(true),
 				// LeaveMode:      proto.Uint32(leaveMode), 	// 目前这个字段用不着
 			},
@@ -323,5 +328,23 @@ func getWeekDayValue(v int) uint32 {
 	case 6:
 		re = 32
 	}
+	log.Debugf("weekday: %d, value: %d", v, re)
 	return re
+}
+
+func buildWeekdays(weekdays []int64) uint32 {
+	var result uint32
+	for _, d := range weekdays {
+		devDay := convertDeviceWeekday(d)
+		result += uint32(1 << uint64(devDay-1))
+	}
+	return result
+}
+
+// Convert 0,1,2,3,4,5,6 -> 1,2,3,4,5,6,7
+func convertDeviceWeekday(weekday int64) int64 {
+	if weekday == int64(time.Sunday) {
+		return 7
+	}
+	return weekday
 }
