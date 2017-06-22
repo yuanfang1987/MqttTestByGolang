@@ -1,11 +1,11 @@
 package user
 
 import (
+	"bytes"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"time"
-
-	"bytes"
 
 	splJSON "github.com/bitly/go-simplejson"
 	log "github.com/cihub/seelog"
@@ -128,6 +128,70 @@ func (user *User) Login() {
 }
 
 // SetAwayMode hh.
-func (user *User) SetAwayMode() {
+func (user *User) SetAwayMode(deviceid string) {
+	startTime := time.Now().Add(3 * time.Minute)
+	endTime := time.Now().Add(63 * time.Minute)
 
+	starthour := startTime.Hour()
+	startminute := startTime.Minute()
+
+	endhour := endTime.Hour()
+	endminute := endTime.Minute()
+
+	weekinfo := startTime.Weekday()
+
+	data := buildWeeklyRepeatAwayModeData(strconv.Itoa(int(weekinfo)), "true", strconv.Itoa(starthour), strconv.Itoa(startminute), strconv.Itoa(endhour),
+		strconv.Itoa(endminute), deviceid)
+
+	request := user.buildRequest("POST", "http://zhome-ci.eufylife.com/v1/away/save-timer", data)
+	if request == nil {
+		log.Error("cancel set away mode.")
+		return
+	}
+	user.req <- request
+	awayModeResultJSON := <-user.jsonResult
+	if awayModeResultJSON == nil {
+		log.Error("set away mode response error.")
+		return
+	}
+	resCode, err := awayModeResultJSON.Get("res_code").Int()
+	if err != nil && resCode != 1 {
+		msg, _ := awayModeResultJSON.Get("message").String()
+		log.Errorf("set away mode fail, res_code :%d, error msg: %s", resCode, msg)
+		return
+	}
+	log.Infof("set away mode success, res_code: %d", resCode)
+}
+
+// GetAwayModeInfo hh.
+func (user *User) GetAwayModeInfo(deviceid string) {
+	request := user.buildRequest("GET", "http://zhome-ci.eufylife.com/v1/away/"+deviceid+"/get-timer", nil)
+	if request == nil {
+		log.Error("cancel get away mode info.")
+		return
+	}
+	user.req <- request
+	awayModeInfoJSON := <-user.jsonResult
+	if awayModeInfoJSON == nil {
+		log.Error("get away mode info response error.")
+		return
+	}
+	// 解析，取值
+	resCode, err := awayModeInfoJSON.Get("res_code").Int()
+	if err != nil && resCode != 1 {
+		msg, _ := awayModeInfoJSON.Get("message").String()
+		log.Errorf("get away mode info fail, error message: %s", msg)
+		return
+	}
+
+	isEnable, _ := awayModeInfoJSON.Get("away_timer").Get("enabled").Bool()
+	scheduleType, _ := awayModeInfoJSON.Get("away_timer").Get("schedule_type").String()
+	starthour, _ := awayModeInfoJSON.Get("away_timer").Get("start_hour").Int()
+	startminute, _ := awayModeInfoJSON.Get("away_timer").Get("start_minute").Int()
+	endhour, _ := awayModeInfoJSON.Get("away_timer").Get("end_hour").Int()
+	endminute, _ := awayModeInfoJSON.Get("away_timer").Get("end_minute").Int()
+	weekinfo, _ := awayModeInfoJSON.Get("away_timer").Get("away_repeat_option").Get("weekdays").Array()
+
+	log.Infof("decode away mode info, enabled: %t, schedule_type: %s, start time: %d:%d, end time: %d:%d, week info %v", isEnable, scheduleType, starthour, startminute,
+		endhour, endminute, weekinfo)
 }
