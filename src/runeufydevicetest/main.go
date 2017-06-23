@@ -5,6 +5,7 @@ import (
 	"oceanwing/config"
 	"oceanwing/eufy/result"
 	"oceanwing/eufy/serverpoint"
+	"oceanwing/eufy/user"
 	"os"
 	"os/signal"
 	"strings"
@@ -13,6 +14,15 @@ import (
 
 	log "github.com/cihub/seelog"
 )
+
+func debug() {
+	defer log.Flush()
+	commontool.InitLogInstance("debug")
+	me := user.NewUser("matt.ma@oceanwing.com", "Lin910528&", "eufy-app", "8FHf22gaTKu7MZXqz5zytw")
+	me.Login()
+	me.SetAwayMode("1fc2fca2-3e9f-4463-a243-2385b8390bea")
+	me.GetAwayModeInfo("1fc2fca2-3e9f-4463-a243-2385b8390bea")
+}
 
 func main() {
 	defer log.Flush()

@@ -22,3 +22,11 @@ func buildWeeklyRepeatAwayModeData(weekinfo, isEnable, startHour, startMinute, e
 	jsonString := fmt.Sprintf(formatString, weekinfo, isEnable, endHour, endMinute, startHour, startMinute, devid)
 	return []byte(jsonString)
 }
+
+func buildStopAwayModeData(devid string) []byte {
+	formatString := `{
+ 		"device_id": "%s"
+	}`
+	jsonString := fmt.Sprintf(formatString, devid)
+	return []byte(jsonString)
+}

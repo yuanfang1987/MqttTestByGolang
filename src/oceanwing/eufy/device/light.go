@@ -59,7 +59,7 @@ func (light *Light) BuildProtoBufMessage() []byte {
 		log.Warnf("上一次测试未通过，需等待新的心跳消息来继续验证， HangOn: %d", light.HangOn)
 		return nil
 	}
-	o := light.buildSetAwayModeMsg()
+	o := light.setLightBrightAndColor()
 	data, err := proto.Marshal(o)
 
 	if err != nil {
