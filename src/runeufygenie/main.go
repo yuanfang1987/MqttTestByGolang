@@ -10,8 +10,8 @@ import (
 )
 
 func main() {
-	ssid := flag.String("ssid", "", "ssid")
-	pwd := flag.String("pwd", "", "password")
+	ssid := flag.String("ssid", "Testing", "ssid")
+	pwd := flag.String("pwd", "Testing2017", "password")
 	flag.Parse()
 	commontool.InitLogInstance("debug")
 	defer log.Flush()
