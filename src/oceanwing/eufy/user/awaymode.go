@@ -4,11 +4,11 @@ import (
 	"fmt"
 )
 
-func buildWeeklyRepeatAwayModeData(weekinfo, isEnable, startHour, startMinute, endHour, endMinute, devid string) []byte {
+func buildWeeklyRepeatAwayModeData(isEnable, startHour, startMinute, endHour, endMinute, devid string) []byte {
 	formatString := `{
   		"away_timer": {
     		"away_repeat_option": {
-      			"weekdays": [%s]
+      			"weekdays": [0,1,2,3,4,5,6]
     		},
     		"enabled": %s,
     		"end_hour": %s,
@@ -19,7 +19,7 @@ func buildWeeklyRepeatAwayModeData(weekinfo, isEnable, startHour, startMinute, e
   		},
   		"device_id": "%s"
 	}`
-	jsonString := fmt.Sprintf(formatString, weekinfo, isEnable, endHour, endMinute, startHour, startMinute, devid)
+	jsonString := fmt.Sprintf(formatString, isEnable, endHour, endMinute, startHour, startMinute, devid)
 	return []byte(jsonString)
 }
 

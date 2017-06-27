@@ -150,7 +150,7 @@ func (user *User) Login() {
 	log.Infof("login success, email: %s, uid: %s", myemail, myuid)
 }
 
-// SetAwayMode hh.
+// SetAwayMode hh..
 func (user *User) SetAwayMode(beginMinute, finishedMinute int, deviceid string) {
 	startTime := time.Now().Add(time.Duration(beginMinute) * time.Minute)
 	endTime := time.Now().Add(time.Duration(finishedMinute) * time.Minute)
@@ -164,9 +164,7 @@ func (user *User) SetAwayMode(beginMinute, finishedMinute int, deviceid string) 
 	endhour := endTime.Hour()
 	endminute := endTime.Minute()
 
-	weekinfo := startTime.Weekday()
-
-	data := buildWeeklyRepeatAwayModeData(strconv.Itoa(int(weekinfo)), "true", strconv.Itoa(starthour), strconv.Itoa(startminute), strconv.Itoa(endhour),
+	data := buildWeeklyRepeatAwayModeData("true", strconv.Itoa(starthour), strconv.Itoa(startminute), strconv.Itoa(endhour),
 		strconv.Itoa(endminute), deviceid)
 
 	request := user.buildRequest("POST", "/v1/away/save-timer", data)
