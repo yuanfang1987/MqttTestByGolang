@@ -28,6 +28,9 @@ type EufyDevice interface {
 
 	// 组装消息并序列化，用于 publish
 	BuildProtoBufMessage() []byte
+
+	// 设置模式
+	SetRunMode(int)
 }
 
 type baseDevice struct {
@@ -42,6 +45,7 @@ type baseDevice struct {
 	CmdSentQuantity            int //下发的指令数量
 	DecodeHeartBeatMsgQuantity int //解析的心跳消息数量
 	HangOn                     int
+	RunMod                     int // 0：NORMAL_MODE， 1： AWAY_MODE， 2： STREAMER_MODE
 }
 
 func (b *baseDevice) GetSubTopic() string {
@@ -78,4 +82,8 @@ func (b *baseDevice) PassedOrFailed(flag bool) string {
 	}
 	b.IsTestPassed = false
 	return "Failed"
+}
+
+func (b *baseDevice) SetRunMode(mode int) {
+	b.RunMod = mode
 }

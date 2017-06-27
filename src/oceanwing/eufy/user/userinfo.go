@@ -17,29 +17,33 @@ var (
 
 // User 模拟一个Eufy用户
 type User struct {
-	httpclient   *http.Client
-	req          chan *http.Request
-	res          chan []byte
-	jsonResult   chan *splJSON.Json
-	email        string
-	passWord     string
-	clientID     string
-	clientSecret string
-	uid          string
-	token        string
+	httpclient      *http.Client
+	req             chan *http.Request
+	res             chan []byte
+	jsonResult      chan *splJSON.Json
+	EnableLeaveMode chan bool
+	LeaveModeStart  time.Time
+	LeaveModeEnd    time.Time
+	email           string
+	passWord        string
+	clientID        string
+	clientSecret    string
+	uid             string
+	token           string
 }
 
 // NewUser create a new user Instance.
 func NewUser(email, pwd, clientid, clientse string) *User {
 	u := &User{
-		httpclient:   &http.Client{Timeout: 30 * time.Second},
-		email:        email,
-		passWord:     pwd,
-		clientID:     clientid,
-		clientSecret: clientse,
-		req:          make(chan *http.Request),
-		res:          make(chan []byte),
-		jsonResult:   make(chan *splJSON.Json),
+		httpclient:      &http.Client{Timeout: 30 * time.Second},
+		email:           email,
+		passWord:        pwd,
+		clientID:        clientid,
+		clientSecret:    clientse,
+		req:             make(chan *http.Request),
+		res:             make(chan []byte),
+		jsonResult:      make(chan *splJSON.Json),
+		EnableLeaveMode: make(chan bool),
 	}
 	u.outgoing()
 	u.handleResponce()
@@ -147,9 +151,12 @@ func (user *User) Login() {
 }
 
 // SetAwayMode hh.
-func (user *User) SetAwayMode(deviceid string) {
-	startTime := time.Now().Add(3 * time.Minute)
-	endTime := time.Now().Add(123 * time.Minute)
+func (user *User) SetAwayMode(beginMinute, finishedMinute int, deviceid string) {
+	startTime := time.Now().Add(time.Duration(beginMinute) * time.Minute)
+	endTime := time.Now().Add(time.Duration(finishedMinute) * time.Minute)
+
+	user.LeaveModeStart = startTime
+	user.LeaveModeEnd = endTime
 
 	starthour := startTime.Hour()
 	startminute := startTime.Minute()
@@ -213,6 +220,8 @@ func (user *User) GetAwayModeInfo(deviceid string) {
 
 	log.Infof("decode away mode info, enabled: %t, schedule_type: %s, start time: %d:%d, end time: %d:%d, week info: %v", isEnable, scheduleType, starthour, startminute,
 		endhour, endminute, weekinfo)
+
+	user.EnableLeaveMode <- isEnable
 }
 
 // StopAwayMode 停止离家模式

@@ -5,7 +5,6 @@ import (
 	"oceanwing/config"
 	"oceanwing/eufy/result"
 	"oceanwing/eufy/serverpoint"
-	"oceanwing/eufy/user"
 	"os"
 	"os/signal"
 	"strings"
@@ -14,15 +13,6 @@ import (
 
 	log "github.com/cihub/seelog"
 )
-
-func debug() {
-	defer log.Flush()
-	commontool.InitLogInstance("debug")
-	me := user.NewUser("matt.ma@oceanwing.com", "Lin910528&", "eufy-app", "8FHf22gaTKu7MZXqz5zytw")
-	me.Login()
-	me.SetAwayMode("1fc2fca2-3e9f-4463-a243-2385b8390bea")
-	me.GetAwayModeInfo("1fc2fca2-3e9f-4463-a243-2385b8390bea")
-}
 
 func main() {
 	defer log.Flush()
@@ -37,6 +27,7 @@ func main() {
 	needca := config.GetBool(config.MqttNeedCA)
 	codeKeys := config.GetString(config.EufyDeviceCodekeys)
 	interval := config.GetInt(config.EufyDeviceSendCmdInterval)
+	mod := config.GetString(config.EufyDeviceRunMode)
 
 	// 初始日志实例
 	commontool.InitLogInstance(config.GetString(config.LogLevel))
@@ -63,6 +54,10 @@ func main() {
 		eufyServer.SetupRunningDevices(allDevices)
 		// run mqtt service.
 		eufyServer.RunMqttService(clientIDUserName, clientIDUserName, password, broker, needca)
+		// whether run away mode
+		if mod == "awaymode" {
+			eufyServer.SetAwayModeByRESTfulAPI()
+		}
 		//timer.
 		heartBeatInterval := time.NewTicker(time.Second * time.Duration(interval)).C
 		for {

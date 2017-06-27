@@ -36,7 +36,7 @@ func (s *MqttServerPoint) SetupRunningDevices(keys []string) {
 		codeAndKey := strings.Split(key, ":")
 		switch codeAndKey[0] {
 		case "T1012", "T1011":
-			dev = device.NewLight(codeAndKey[0], codeAndKey[1])
+			dev = device.NewLight(codeAndKey[0], codeAndKey[1], codeAndKey[2])
 		case "T2103":
 			dev = device.NewRobotCleaner(codeAndKey[0], codeAndKey[1])
 		}
@@ -71,6 +71,22 @@ func (s *MqttServerPoint) distributeMsg(message MQTT.Message) {
 			dev.SendPayload(payload)
 			return
 		}
+	}
+}
+
+// SetAwayModeByRESTfulAPI hh.
+func (s *MqttServerPoint) SetAwayModeByRESTfulAPI() {
+	if len(s.devices) == 0 {
+		log.Error("No device found.")
+		return
+	}
+
+	for _, dev := range s.devices {
+		switch whichDev := dev.(type) {
+		case *device.Light:
+			whichDev.EnableLeaveHomeMode()
+		}
+
 	}
 }
 

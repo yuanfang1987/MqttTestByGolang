@@ -5,7 +5,9 @@ import (
 	"math"
 	"math/rand"
 	"oceanwing/commontool"
+	"oceanwing/config"
 	"oceanwing/eufy/result"
+	"oceanwing/eufy/user"
 	"time"
 
 	log "github.com/cihub/seelog"
@@ -18,23 +20,32 @@ import (
 // Light 灯泡类产品的一个 struct 描述，包括 T1011,T1012,T1013
 type Light struct {
 	baseDevice
-	mode      lightT1012.DeviceMessage_ReportDevBaseInfo_LIGHT_DEV_MODE
-	status    lightT1012.LIGHT_ONOFF_STATUS
-	lum       uint32
-	colorTemp uint32
+	mode               lightT1012.DeviceMessage_ReportDevBaseInfo_LIGHT_DEV_MODE
+	status             lightT1012.LIGHT_ONOFF_STATUS
+	lum                uint32
+	lumTemp            uint32 // 临时用来存放 lum
+	colorTemp          uint32
+	holdCurrentInfo    bool // 当开启离家模式时，用此字段来标识是否已把 mode,status,lum,colorTemp 的值固定住
+	appUser            *user.User
+	modeLeaveHome      lightT1012.DeviceMessage_ReportDevBaseInfo_LIGHT_DEV_MODE
+	statusLeaveHome    lightT1012.LIGHT_ONOFF_STATUS
+	lumLeaveHome       uint32
+	colorTempLeaveHome uint32
 }
 
 // NewLight 新建一个 Light 实例
-func NewLight(prodCode, devKey string) EufyDevice {
+func NewLight(prodCode, devKey, devid string) EufyDevice {
 	o := &Light{
 		mode:   0,
 		status: 1,
 	}
 	o.ProdCode = prodCode
 	o.DevKEY = devKey
+	o.DevID = devid
 	o.PubTopicl = "DEVICE/T1012/" + devKey + "/SUB_MESSAGE"
 	o.SubTopicl = "DEVICE/T1012/" + devKey + "/PUH_MESSAGE"
 	o.SubMessage = make(chan []byte)
+	log.Infof("Create a Light, product code: %s, device key: %s, device id: %s", prodCode, devKey, devid)
 	return o
 }
 
@@ -54,6 +65,12 @@ func (light *Light) HandleSubscribeMessage() {
 
 // BuildProtoBufMessage 实现 EufyDevice 接口
 func (light *Light) BuildProtoBufMessage() []byte {
+	// 如果在跑离家模式，则不发任何指令
+	if light.RunMod == 1 {
+		log.Info("正在跑离家模式......")
+		return nil
+	}
+
 	// 如果上一次的测试结果没有通过，则被挂起，则先不要发新的指令过去
 	if light.HangOn != 0 {
 		log.Warnf("上一次测试未通过，需等待新的心跳消息来继续验证， HangOn: %d", light.HangOn)
@@ -188,7 +205,119 @@ func (light *Light) buildSetAwayModeMsg() *lightT1012.ServerMessage {
 	return o
 }
 
-// 解析心跳消息
+// EnableLeaveHomeMode 开启离家模式
+func (light *Light) EnableLeaveHomeMode() {
+	email := config.GetString(config.AppuserEmail)
+	pwd := config.GetString(config.AppuserPassword)
+	clientid := config.GetString(config.AppuserClientid)
+	clientse := config.GetString(config.AppuserClientscret)
+	start := config.GetInt(config.AwayModeStart)
+	end := config.GetInt(config.AwayModeEnd)
+
+	light.appUser = user.NewUser(email, pwd, clientid, clientse)
+	light.appUser.Login()
+	light.appUser.SetAwayMode(start, end, light.DevID)
+	go light.appUser.GetAwayModeInfo(light.DevID)
+	ok := <-light.appUser.EnableLeaveMode
+	if ok {
+		log.Infof("灯泡 %s (%s) 获取离家模式配置数据成功", light.DevKEY, light.ProdCode)
+		light.controlAwayModStatus(light.appUser.LeaveModeStart, light.appUser.LeaveModeEnd)
+	}
+}
+
+func (light *Light) controlAwayModStatus(start, end time.Time) {
+	go func() {
+		oneSecond := time.NewTicker(time.Second * 1).C
+		for {
+			select {
+			case <-oneSecond:
+				nowTime := time.Now()
+				// 当前时间与开始时间作对比， 如何相等， 则标识 RunMod 为离家模式
+				if nowTime.Hour() == start.Hour() && nowTime.Minute() == start.Minute() {
+					light.RunMod = 1
+					light.mode = 1
+					log.Infof("灯泡 %s (%s) 开启离家模式", light.DevKEY, light.ProdCode)
+					result.WriteToResultFile(light.ProdCode, light.DevKEY, "NA", "开启离家模式", "NA")
+				}
+				// 当前时间与结束时间作对比， 如何相等， 则标识 RunMod 为正常模式
+				if nowTime.Hour() == end.Hour() && nowTime.Minute() == end.Minute() {
+					light.RunMod = 0
+					light.mode = 0
+					log.Infof("灯泡 %s (%s) 恢复正常模式", light.DevKEY, light.ProdCode)
+					result.WriteToResultFile(light.ProdCode, light.DevKEY, "NA", "恢复正常模式", "NA")
+				}
+			}
+
+		}
+	}()
+}
+
+// leave 模式下
+func (light *Light) leaveModeTest(devInfo *lightT1012.DeviceMessage_ReportDevBaseInfo) {
+	var l uint32
+	var c uint32
+	var assertFlag string
+	var testContent string
+	mod := devInfo.GetMode()
+	stat := devInfo.GetOnoffStatus()
+	modStr := lightT1012.DeviceMessage_ReportDevBaseInfo_LIGHT_DEV_MODE_name[int32(mod)]
+	statStr := lightT1012.LIGHT_ONOFF_STATUS_name[int32(stat)]
+	log.Infof("灯泡 %s (%s) 模式: %s, 状态: %s", light.DevKEY, light.ProdCode, modStr, statStr)
+	lctrl := devInfo.GetLightCtl()
+	if lctrl != nil {
+		l = lctrl.GetLum()
+		log.Infof("灯泡 %s (%s) 亮度：%d", light.DevKEY, light.ProdCode, l)
+		if light.ProdCode != "T1011" {
+			c = lctrl.GetColorTemp()
+			log.Infof("灯泡 %s (%s) 色温: %d", light.DevKEY, light.ProdCode, c)
+		}
+	}
+
+	// 刚开始进入离家模式时， 先把当前的状态记录下
+	// if !light.holdCurrentInfo {
+	// 	light.mode = mod
+	// 	light.status = stat
+	// 	light.lum = l
+	// 	light.colorTemp = c
+	// 	light.lumTemp = light.lum
+	// 	light.holdCurrentInfo = true
+	// 	log.Info("离家模式开始前，已记录当前灯泡的各种状态")
+	// }
+
+	// 判断心跳数据, mode 字段必须是 1
+	assertFlag = light.PassedOrFailed(1 == mod)
+	testContent = fmt.Sprintf("灯泡 %s (%s) Mode, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, 1, mod)
+	result.WriteToResultFile(light.ProdCode, light.DevKEY, "Mode", testContent, assertFlag)
+
+	// 如果随机发生了开关灯， 则记录下来
+	if light.status != stat {
+		var str string
+		if stat == lightT1012.LIGHT_ONOFF_STATUS_ON {
+			str = "离家模式随机开灯"
+			light.lumLeaveHome = light.lumTemp // 重新开灯后， 把临时变量的值赋值给 lum
+		} else {
+			str = "离家模式随机关灯"
+			light.lumTemp = light.lumLeaveHome // 把当前亮度存放在一个临时变量中, 待下次开灯时，要拿出来对比
+			light.lumLeaveHome = 0             //关灯之后， 亮度是0
+		}
+		result.WriteToResultFile(light.ProdCode, light.DevKEY, str, "NA", "NA")
+		log.Infof("离家模式随机开关灯被触发, 本次是: %s", statStr)
+	}
+
+	// 判断亮度
+	assertFlag = light.PassedOrFailed(light.lumLeaveHome == l)
+	testContent = fmt.Sprintf("灯泡 %s (%s) lum, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.lumLeaveHome, l)
+	result.WriteToResultFile(light.ProdCode, light.DevKEY, "离家模式-亮度", testContent, assertFlag)
+
+	// 非 T1011 的才有色温
+	if light.ProdCode != "T1011" {
+		assertFlag = light.PassedOrFailed(light.colorTempLeaveHome == c)
+		testContent = fmt.Sprintf("灯泡 %s (%s) colorTemp, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.colorTempLeaveHome, c)
+		result.WriteToResultFile(light.ProdCode, light.DevKEY, "离家模式-色温", testContent, assertFlag)
+	}
+}
+
+// 解析心跳
 func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 	deviceMsg := &lightT1012.DeviceMessage{}
 	err := proto.Unmarshal(incomingPayload, deviceMsg)
@@ -199,16 +328,22 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 
 	noneParaMsg := deviceMsg.GetNonParaMsg()
 	if noneParaMsg != nil {
-		log.Infof("Cmd type of Non_ParamMsg: %d", noneParaMsg.GetType())
+		log.Infof("无参数消息, 指令类型: %d", noneParaMsg.GetType())
 	}
 
 	devBaseInfo := deviceMsg.GetReportDevBaseInfo()
 	if devBaseInfo == nil {
-		log.Warnf("提取灯泡 %s (%s) 基础信息失败", light.DevKEY, light.ProdCode)
+		// log.Warnf("提取灯泡 %s (%s) 基础信息失败", light.DevKEY, light.ProdCode)
 		return
 	}
 
 	log.Infof("解析灯泡 %s (%s) 的心跳消息成功", light.DevKEY, light.ProdCode)
+
+	// 如果是离家模式, 如何触发 RunMod = 1?
+	if light.RunMod == 1 {
+		light.leaveModeTest(devBaseInfo)
+		return
+	}
 
 	// --------------------- 判断结果 --------------------------------------------
 
@@ -252,6 +387,8 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 
 	resultMap["Mode"] = modeResuleMap
 
+	light.modeLeaveHome = devBaseInfo.GetMode() // 记录当前灯的模式
+
 	// Status
 	assertFlag = light.PassedOrFailed(light.status == devBaseInfo.GetOnoffStatus())
 	testContent = fmt.Sprintf("灯泡 %s (%s) Status, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.status, devBaseInfo.GetOnoffStatus())
@@ -262,6 +399,8 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 	statusResultMap["flag"] = assertFlag
 
 	resultMap["Status"] = statusResultMap
+
+	light.statusLeaveHome = devBaseInfo.GetOnoffStatus() // 记录当前灯的开关状态
 
 	ligthCTRL := devBaseInfo.GetLightCtl()
 	if ligthCTRL != nil {
@@ -276,6 +415,9 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 
 		resultMap["Lum"] = lumResultMap
 
+		light.lumLeaveHome = ligthCTRL.GetLum() // 记录当前灯的亮度
+		light.lumTemp = ligthCTRL.GetLum()
+
 		// 只有 T1012 和 T1013 才有色温
 		if light.ProdCode != "T1011" {
 			assertFlag = light.PassedOrFailed(light.colorTemp == ligthCTRL.GetColorTemp())
@@ -288,6 +430,7 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 
 			resultMap["ColorTemp"] = colorTempResultMap
 
+			light.colorTempLeaveHome = ligthCTRL.GetColorTemp() // 记录当前灯的色温
 		}
 	}
 

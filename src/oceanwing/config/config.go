@@ -23,11 +23,7 @@ const (
 
 	EufyDeviceSendCmdInterval = "eufydevice.send_command_interval"
 	EufyDeviceCodekeys        = "eufydevice.code_key"
-
-	AnkerBoxServerSendSpeed = "ankerbox.server_send_speed"
-	AnkerBoxDeviceID        = "ankerbox.device_id"
-	AnkerBoxCommandFile     = "ankerbox.command_file"
-	AnkerBoxClientNum       = "ankerbox.client_num"
+	EufyDeviceRunMode         = "eufydevice.run_mode"
 
 	RobotCleanerRunMode           = "robotcleaner.runMode"
 	RobotcleanerHeartBeatInterval = "robotcleaner.heart_beat_interval"
@@ -41,6 +37,9 @@ const (
 	AppuserPassword    = "appuser.password"
 	AppuserDevID       = "appuser.devID"
 	AppuserDevKey      = "appuser.devKey"
+
+	AwayModeStart = "awaymode.start"
+	AwayModeEnd   = "awaymode.end"
 )
 
 var (
