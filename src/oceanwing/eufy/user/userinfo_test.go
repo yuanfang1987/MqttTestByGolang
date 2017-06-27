@@ -20,21 +20,23 @@ func Test_user(t *testing.T) {
 	later := time.Now().Add(2 * time.Minute)
 	laterHour := later.Hour()
 	laterMinute := later.Minute()
+	laterSecond := later.Second()
 	counter := 0
 	for {
 		time.Sleep(1 * time.Second)
 		nn := time.Now()
 		nnHour := nn.Hour()
 		nnMinute := nn.Minute()
-		fmt.Printf("expected time %d:%d, now time %d:%d\n", laterHour, laterMinute, nnHour, nnMinute)
-		if laterHour == nnHour && laterMinute == nnMinute {
+		nnSecond := nn.Second()
+		fmt.Printf("expected time %d:%d:%d, now time %d:%d:%d\n", laterHour, laterMinute, laterSecond, nnHour, nnMinute, nnSecond)
+		if laterHour == nnHour && laterMinute == nnMinute && laterSecond == nnSecond {
 			fmt.Println("it's the time now.")
 			break
 		}
 		counter++
 		fmt.Printf("%d second pass...\n", counter)
 	}
-
+	fmt.Println("end test.")
 	channelSignal := make(chan os.Signal)
 	signal.Notify(channelSignal, os.Interrupt)
 	signal.Notify(channelSignal, syscall.SIGTERM)

@@ -203,20 +203,20 @@ func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage {
 // ControlAwayModStatus 实现了 EufyDevice 接口
 func (light *Light) ControlAwayModStatus(start, end time.Time) {
 	go func() {
-		interval := time.NewTicker(time.Second * 20).C
+		interval := time.NewTicker(time.Second * 1).C
 		for {
 			select {
 			case <-interval:
 				nowTime := time.Now()
 				// 当前时间与开始时间作对比， 如何相等， 则标识 RunMod 为离家模式
-				if nowTime.Hour() == start.Hour() && nowTime.Minute() == start.Minute() {
+				if nowTime.Hour() == start.Hour() && nowTime.Minute() == start.Minute() && nowTime.Second() == start.Second() {
 					light.RunMod = 1
 					light.mode = 1
 					log.Infof("灯泡 %s (%s) 开启离家模式", light.DevKEY, light.ProdCode)
 					result.WriteToResultFile(light.ProdCode, light.DevKEY, "NA", "开启离家模式", "NA")
 				}
 				// 当前时间与结束时间作对比， 如何相等， 则标识 RunMod 为正常模式
-				if nowTime.Hour() == end.Hour() && nowTime.Minute() == end.Minute() {
+				if nowTime.Hour() == end.Hour() && nowTime.Minute() == end.Minute() && nowTime.Second() == end.Second() {
 					light.RunMod = 0
 					light.mode = 0
 					log.Infof("灯泡 %s (%s) 恢复正常模式", light.DevKEY, light.ProdCode)
