@@ -97,5 +97,14 @@ func (b *baseDevice) PassedOrFailed(flag bool) string {
 }
 
 func (b *baseDevice) ControlAwayModStatus(start, end time.Time) {
-	fmt.Println("Not implimented yet.")
+	fmt.Println("ControlAwayModStatus() Not implimented yet.")
+}
+
+func (b *baseDevice) HandleSubscribeMessage() {
+	fmt.Println("HandleSubscribeMessage() function Not implimented yet.")
+}
+
+func (b *baseDevice) BuildProtoBufMessage() []byte {
+	fmt.Println("BuildProtoBufMessage() function Not implimented yet.")
+	return nil
 }
