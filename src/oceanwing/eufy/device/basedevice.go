@@ -1,5 +1,10 @@
 package device
 
+import (
+	"fmt"
+	"time"
+)
+
 // EufyDevice 所有 eufy device 的行为接口
 type EufyDevice interface {
 	// 当订阅的主题有消息推送下来时，用此方法来处理消息
@@ -17,6 +22,9 @@ type EufyDevice interface {
 	// 获取当前 Device 的 Device Key
 	GetProductKey() string
 
+	// 获取当前 Device 的 divice id
+	GetDeviceID() string
+
 	// 当测试结束时，获取对当前Device发出的指令总数
 	GetSentCmds() int
 
@@ -29,8 +37,8 @@ type EufyDevice interface {
 	// 组装消息并序列化，用于 publish
 	BuildProtoBufMessage() []byte
 
-	// 设置模式
-	SetRunMode(int)
+	// 控制离家模式的开始和结束
+	ControlAwayModStatus(start, end time.Time)
 }
 
 type baseDevice struct {
@@ -64,6 +72,10 @@ func (b *baseDevice) GetProductKey() string {
 	return b.DevKEY
 }
 
+func (b *baseDevice) GetDeviceID() string {
+	return b.DevID
+}
+
 func (b *baseDevice) GetSentCmds() int {
 	return b.CmdSentQuantity
 }
@@ -84,6 +96,6 @@ func (b *baseDevice) PassedOrFailed(flag bool) string {
 	return "Failed"
 }
 
-func (b *baseDevice) SetRunMode(mode int) {
-	b.RunMod = mode
+func (b *baseDevice) ControlAwayModStatus(start, end time.Time) {
+	fmt.Println("Not implimented yet.")
 }

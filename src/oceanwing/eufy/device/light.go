@@ -5,14 +5,11 @@ import (
 	"math"
 	"math/rand"
 	"oceanwing/commontool"
-	"oceanwing/config"
 	"oceanwing/eufy/result"
-	"oceanwing/eufy/user"
 	"time"
 
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
-	serverAwayMode "oceanwing/eufy/protobuf.lib/common/server/awaymode"
 	lightEvent "oceanwing/eufy/protobuf.lib/light/lightevent"
 	lightT1012 "oceanwing/eufy/protobuf.lib/light/t1012"
 )
@@ -25,8 +22,6 @@ type Light struct {
 	lum                uint32
 	lumTemp            uint32 // 临时用来存放 lum
 	colorTemp          uint32
-	holdCurrentInfo    bool // 当开启离家模式时，用此字段来标识是否已把 mode,status,lum,colorTemp 的值固定住
-	appUser            *user.User
 	modeLeaveHome      lightT1012.DeviceMessage_ReportDevBaseInfo_LIGHT_DEV_MODE
 	statusLeaveHome    lightT1012.LIGHT_ONOFF_STATUS
 	lumLeaveHome       uint32
@@ -161,76 +156,57 @@ func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage {
 	return o
 }
 
-func (light *Light) buildSetAwayModeMsg() *lightT1012.ServerMessage {
-	// set away mode msg
-	startTime := time.Now().Add(3 * time.Minute)
-	finishTime := time.Now().Add(13 * time.Minute)
+// func (light *Light) buildSetAwayModeMsg() *lightT1012.ServerMessage {
+// 	// set away mode msg
+// 	startTime := time.Now().Add(3 * time.Minute)
+// 	finishTime := time.Now().Add(13 * time.Minute)
 
-	// weekday := getWeekDayValue(int(startTime.Weekday()))
+// 	// weekday := getWeekDayValue(int(startTime.Weekday()))
 
-	weekday := int64(startTime.Weekday())
-	ss := []int64{weekday}
-	bb := buildWeekdays(ss)
-	log.Debugf("weekday: %d", bb)
+// 	weekday := int64(startTime.Weekday())
+// 	ss := []int64{weekday}
+// 	bb := buildWeekdays(ss)
+// 	log.Debugf("weekday: %d", bb)
 
-	startHours := uint32(startTime.Hour())
-	startMinutes := uint32(startTime.Minute())
+// 	startHours := uint32(startTime.Hour())
+// 	startMinutes := uint32(startTime.Minute())
 
-	finishHours := uint32(finishTime.Hour())
-	finishMinutes := uint32(finishTime.Minute())
+// 	finishHours := uint32(finishTime.Hour())
+// 	finishMinutes := uint32(finishTime.Minute())
 
-	awayMod := &lightT1012.ServerMessage_SetAwayMode_Status{
-		SetAwayMode_Status: &lightT1012.ServerMessage_SetAwayMode{
-			Type: lightT1012.CmdType_REMOTE_SET_AWAYMODE_STATUS.Enum(),
-			SyncLeaveModeMsg: &serverAwayMode.LeaveHomeMessage{
-				StartHours:     proto.Uint32(startHours),
-				StartMinutes:   proto.Uint32(startMinutes),
-				FinishHours:    proto.Uint32(finishHours),
-				FinishMinutes:  proto.Uint32(finishMinutes),
-				Repetiton:      proto.Bool(true),
-				WeekInfo:       proto.Uint32(bb),
-				LeaveHomeState: proto.Bool(true),
-				// LeaveMode:      proto.Uint32(leaveMode), 	// 目前这个字段用不着
-			},
-		},
-	}
+// 	awayMod := &lightT1012.ServerMessage_SetAwayMode_Status{
+// 		SetAwayMode_Status: &lightT1012.ServerMessage_SetAwayMode{
+// 			Type: lightT1012.CmdType_REMOTE_SET_AWAYMODE_STATUS.Enum(),
+// 			SyncLeaveModeMsg: &serverAwayMode.LeaveHomeMessage{
+// 				StartHours:     proto.Uint32(startHours),
+// 				StartMinutes:   proto.Uint32(startMinutes),
+// 				FinishHours:    proto.Uint32(finishHours),
+// 				FinishMinutes:  proto.Uint32(finishMinutes),
+// 				Repetiton:      proto.Bool(true),
+// 				WeekInfo:       proto.Uint32(bb),
+// 				LeaveHomeState: proto.Bool(true),
+// 				// LeaveMode:      proto.Uint32(leaveMode), 	// 目前这个字段用不着
+// 			},
+// 		},
+// 	}
 
-	o := &lightT1012.ServerMessage{
-		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
-		RemoteMessage: awayMod,
-	}
+// 	o := &lightT1012.ServerMessage{
+// 		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
+// 		RemoteMessage: awayMod,
+// 	}
 
-	log.Infof("设置离家模式, 开始时间: %d:%d, 结束时间: %d:%d", startHours, startMinutes, finishHours, finishMinutes)
+// 	log.Infof("设置离家模式, 开始时间: %d:%d, 结束时间: %d:%d", startHours, startMinutes, finishHours, finishMinutes)
 
-	return o
-}
+// 	return o
+// }
 
-// EnableLeaveHomeMode 开启离家模式
-func (light *Light) EnableLeaveHomeMode() {
-	email := config.GetString(config.AppuserEmail)
-	pwd := config.GetString(config.AppuserPassword)
-	clientid := config.GetString(config.AppuserClientid)
-	clientse := config.GetString(config.AppuserClientscret)
-	start := config.GetInt(config.AwayModeStart)
-	end := config.GetInt(config.AwayModeEnd)
-
-	light.appUser = user.NewUser(email, pwd, clientid, clientse)
-	light.appUser.Login()
-	light.appUser.SetAwayMode(start, end, light.DevID)
-	go light.appUser.GetAwayModeInfo(light.DevID)
-	ok := <-light.appUser.EnableLeaveMode
-	if ok {
-		log.Infof("灯泡 %s (%s) 获取离家模式配置数据成功", light.DevKEY, light.ProdCode)
-		light.controlAwayModStatus(light.appUser.LeaveModeStart, light.appUser.LeaveModeEnd)
-	}
-}
-
-func (light *Light) controlAwayModStatus(start, end time.Time) {
+// ControlAwayModStatus 实现了 EufyDevice 接口
+func (light *Light) ControlAwayModStatus(start, end time.Time) {
 	go func() {
-		oneSecond := time.NewTicker(time.Second * 1).C
+		interval := time.NewTicker(time.Second * 20).C
 		for {
 			select {
-			case <-oneSecond:
+			case <-interval:
 				nowTime := time.Now()
 				// 当前时间与开始时间作对比， 如何相等， 则标识 RunMod 为离家模式
 				if nowTime.Hour() == start.Hour() && nowTime.Minute() == start.Minute() {
@@ -290,7 +266,7 @@ func (light *Light) leaveModeTest(devInfo *lightT1012.DeviceMessage_ReportDevBas
 	result.WriteToResultFile(light.ProdCode, light.DevKEY, "Mode", testContent, assertFlag)
 
 	// 如果随机发生了开关灯， 则记录下来
-	if light.status != stat {
+	if light.statusLeaveHome != stat {
 		var str string
 		if stat == lightT1012.LIGHT_ONOFF_STATUS_ON {
 			str = "离家模式随机开灯"

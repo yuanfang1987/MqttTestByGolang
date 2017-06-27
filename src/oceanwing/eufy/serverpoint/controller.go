@@ -3,6 +3,7 @@ package serverpoint
 import (
 	"oceanwing/eufy/device"
 	"oceanwing/eufy/result"
+	"oceanwing/eufy/user"
 	"oceanwing/mqttclient"
 	"strconv"
 	"strings"
@@ -67,7 +68,6 @@ func (s *MqttServerPoint) distributeMsg(message MQTT.Message) {
 	payload := message.Payload()
 	for _, dev := range s.devices {
 		if t == dev.GetSubTopic() {
-			//log.Debugf("send incoming message to device: %s, message id: %d", light.devKEY, message.MessageID())
 			dev.SendPayload(payload)
 			return
 		}
@@ -75,18 +75,25 @@ func (s *MqttServerPoint) distributeMsg(message MQTT.Message) {
 }
 
 // SetAwayModeByRESTfulAPI hh.
-func (s *MqttServerPoint) SetAwayModeByRESTfulAPI() {
+func (s *MqttServerPoint) SetAwayModeByRESTfulAPI(email, pwd, clientid, clientse string, start, end int) {
 	if len(s.devices) == 0 {
 		log.Error("No device found.")
 		return
 	}
 
-	for _, dev := range s.devices {
-		switch whichDev := dev.(type) {
-		case *device.Light:
-			whichDev.EnableLeaveHomeMode()
-		}
+	appUser := user.NewUser(email, pwd, clientid, clientse)
+	appUser.Login()
 
+	for _, dev := range s.devices {
+		appUser.SetAwayMode(start, end, dev.GetDeviceID())
+		go appUser.GetAwayModeInfo(dev.GetDeviceID())
+		ok := <-appUser.EnableLeaveMode
+		if ok {
+			dev.ControlAwayModStatus(appUser.LeaveModeStart, appUser.LeaveModeEnd)
+			log.Infof("设备 %s (%s) 设置离家模式并获取配置数据成功", dev.GetProductKey(), dev.GetProductCode())
+		} else {
+			log.Infof("设备 %s (%s) 设置离家模式失败", dev.GetProductKey(), dev.GetProductCode())
+		}
 	}
 }
 

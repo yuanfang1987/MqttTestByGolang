@@ -29,7 +29,7 @@ func main() {
 	interval := config.GetInt(config.EufyDeviceSendCmdInterval)
 	mod := config.GetString(config.EufyDeviceRunMode)
 
-	// 初始日志实例
+	// 初始化日志实例
 	commontool.InitLogInstance(config.GetString(config.LogLevel))
 
 	log.Info("=========================== Starting a new Eufy Device functional testing =========================")
@@ -48,7 +48,7 @@ func main() {
 	//defer result.CloseResultFile()
 
 	go func() {
-		// create a new cleaner
+		// create a new eufyServer instance.
 		eufyServer := serverpoint.NewMqttServerPoint()
 		allDevices := strings.Split(codeKeys, ",")
 		eufyServer.SetupRunningDevices(allDevices)
@@ -56,7 +56,13 @@ func main() {
 		eufyServer.RunMqttService(clientIDUserName, clientIDUserName, password, broker, needca)
 		// whether run away mode
 		if mod == "awaymode" {
-			eufyServer.SetAwayModeByRESTfulAPI()
+			email := config.GetString(config.AppuserEmail)
+			pwd := config.GetString(config.AppuserPassword)
+			clientid := config.GetString(config.AppuserClientid)
+			clientse := config.GetString(config.AppuserClientscret)
+			start := config.GetInt(config.AwayModeStart)
+			end := config.GetInt(config.AwayModeEnd)
+			eufyServer.SetAwayModeByRESTfulAPI(email, pwd, clientid, clientse, start, end)
 		}
 		//timer.
 		heartBeatInterval := time.NewTicker(time.Second * time.Duration(interval)).C
