@@ -115,3 +115,11 @@ func pbUnMarshal(payload []byte) {
 		fmt.Printf("Others: %s\n", others)
 	}
 }
+
+// -----------------------------------------------------------------
+
+// Person hh.
+type Person struct {
+	name string
+	age  int
+}

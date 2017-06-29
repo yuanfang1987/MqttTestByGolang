@@ -267,6 +267,7 @@ func (light *Light) leaveModeTest(devInfo *lightT1012.DeviceMessage_ReportDevBas
 
 	// 如果随机发生了开关灯， 则记录下来
 	if light.statusLeaveHome != stat {
+		light.statusLeaveHome = stat // 更新  mode
 		var str string
 		if stat == lightT1012.LIGHT_ONOFF_STATUS_ON {
 			str = "离家模式随机开灯"
