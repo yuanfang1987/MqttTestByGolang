@@ -24,9 +24,10 @@ func NewLight(prodCode, devKey string) EufyDevice {
 	}
 	o.ProdCode = prodCode
 	o.DevKEY = devKey
-	o.SubDeviceTopic = "DEVICE/T1012/" + devKey + "/PUH_MESSAGE" // 订阅设备的消息
-	o.SubServerTopic = "DEVICE/T1012/" + devKey + "/SUB_MESSAGE" //订阅服务器的消息
+	o.SubDeviceTopic = "DEVICE/" + prodCode + "/" + devKey + "/PUH_MESSAGE" // 订阅设备的消息
+	o.SubServerTopic = "DEVICE/" + prodCode + "/" + devKey + "/SUB_MESSAGE" //订阅服务器的消息
 	o.SubMessage = make(chan MQTT.Message)
+	log.Debugf("灯泡 %s (%s) 订阅设备主题: %s, 订阅服务器主题: %s", o.DevKEY, o.ProdCode, o.SubDeviceTopic, o.SubServerTopic)
 	return o
 }
 
