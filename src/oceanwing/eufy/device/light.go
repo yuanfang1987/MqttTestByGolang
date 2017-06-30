@@ -544,6 +544,7 @@ func (light *Light) unMarshalServerMsg(incomingPayload []byte) {
 			if leaveHomeFlag && (!light.isCtrlFunRunning) {
 				light.ControlAwayModStatus(starthour, startminute, finishhour, finishminute)
 			}
+			// 如果服务器下发的 离家模式 为 false，且控制函数已运行，则发信号干掉之.
 			if (!leaveHomeFlag) && light.isCtrlFunRunning {
 				light.stopCtrlFunc <- struct{}{}
 			}
