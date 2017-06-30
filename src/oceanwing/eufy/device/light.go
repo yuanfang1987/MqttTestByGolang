@@ -26,9 +26,11 @@ type Light struct {
 	statusLeaveHome    lightT1012.LIGHT_ONOFF_STATUS
 	lumLeaveHome       uint32
 	colorTempLeaveHome uint32
+	isCtrlFunRunning   bool
+	stopCtrlFunc       chan struct{}
 }
 
-// NewLight 新建一个 Light 实例
+// NewLight 新建一个 Light 实例.
 func NewLight(prodCode, devKey, devid string) EufyDevice {
 	o := &Light{
 		mode:   0,
@@ -41,6 +43,7 @@ func NewLight(prodCode, devKey, devid string) EufyDevice {
 	o.SubTopicl = "DEVICE/T1012/" + devKey + "/PUH_MESSAGE"
 	o.DeviceMsg = make(chan []byte)
 	o.ServerMsg = make(chan []byte)
+	o.stopCtrlFunc = make(chan struct{})
 	log.Infof("Create a Light, product code: %s, device key: %s, device id: %s", prodCode, devKey, devid)
 	return o
 }
@@ -51,11 +54,12 @@ func (light *Light) HandleSubscribeMessage() {
 		log.Debugf("Running handleIncomingMsg function for device: %s", light.DevKEY)
 		for {
 			select {
-			case msg := <-light.DeviceMsg:
+			case devmsg := <-light.DeviceMsg:
 				log.Infof("get new incoming message from device: %s", light.DevKEY)
-				light.unMarshalHeartBeatMsg(msg)
-			case <-light.ServerMsg:
-				// to do.
+				light.unMarshalHeartBeatMsg(devmsg)
+			case serMsg := <-light.ServerMsg:
+				log.Info("get new incoming message from server")
+				light.unMarshalServerMsg(serMsg)
 			}
 		}
 	}()
@@ -204,29 +208,33 @@ func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage {
 // }
 
 // ControlAwayModStatus 实现了 EufyDevice 接口
-func (light *Light) ControlAwayModStatus(start, end time.Time) {
+func (light *Light) ControlAwayModStatus(startHour, startMinute, endHour, endMinute int) {
 	go func() {
+		light.isCtrlFunRunning = true
 		interval := time.NewTicker(time.Second * 1).C
 		for {
 			select {
 			case <-interval:
 				nowTime := time.Now()
 				// 当前时间与开始时间作对比， 如何相等， 则标识 RunMod 为离家模式
-				if nowTime.Hour() == start.Hour() && nowTime.Minute() == start.Minute() && nowTime.Second() == start.Second() {
+				if nowTime.Hour() == startHour && nowTime.Minute() == startMinute && nowTime.Second() == 0 {
 					light.RunMod = 1
 					light.mode = 1
 					log.Infof("灯泡 %s (%s) 开启离家模式", light.DevKEY, light.ProdCode)
 					result.WriteToResultFile(light.ProdCode, light.DevKEY, "NA", "开启离家模式", "NA")
 				}
 				// 当前时间与结束时间作对比， 如何相等， 则标识 RunMod 为正常模式
-				if nowTime.Hour() == end.Hour() && nowTime.Minute() == end.Minute() && nowTime.Second() == end.Second() {
+				if nowTime.Hour() == endHour && nowTime.Minute() == endMinute && nowTime.Second() == 0 {
 					light.RunMod = 0
 					light.mode = 0
 					log.Infof("灯泡 %s (%s) 恢复正常模式", light.DevKEY, light.ProdCode)
 					result.WriteToResultFile(light.ProdCode, light.DevKEY, "NA", "恢复正常模式", "NA")
 				}
+			case <-light.stopCtrlFunc:
+				light.isCtrlFunRunning = false
+				//干掉这个函数
+				return
 			}
-
 		}
 	}()
 }
@@ -533,14 +541,52 @@ func (light *Light) unMarshalServerMsg(incomingPayload []byte) {
 		log.Infof("------指令类型: %s", cmd)
 		leaveMsg := awayMod.GetSyncLeaveModeMsg()
 		if leaveMsg != nil {
-			log.Infof("------离家模式, 开始时间  %d:%d", leaveMsg.GetStartHours(), leaveMsg.GetStartMinutes())
-			log.Infof("------离家模式, 结束时间  %d:%d", leaveMsg.GetFinishHours(), leaveMsg.GetFinishMinutes())
+			starthour := int(leaveMsg.GetStartHours())
+			startminute := int(leaveMsg.GetStartMinutes())
+			finishhour := int(leaveMsg.GetFinishHours())
+			finishminute := int(leaveMsg.GetFinishMinutes())
+			log.Infof("------离家模式, 开始时间  %d:%d", starthour, startminute)
+			log.Infof("------离家模式, 结束时间  %d:%d", finishhour, finishminute)
 			log.Infof("------离家模式, 是否重复: %t", leaveMsg.GetRepetiton())
 			log.Infof("------离家模式, WeekInfo: %s", convertToWeekDay(leaveMsg.GetWeekInfo()))
-			log.Infof("------离家模式, 是否开启: %t", leaveMsg.GetLeaveHomeState())
+			leaveHomeFlag := leaveMsg.GetLeaveHomeState()
+			log.Infof("------离家模式, 是否开启: %t", leaveHomeFlag)
+			// 如果服务器下发的 离家模式 为 true，且控制函数没有运行，则跑之.
+			if leaveHomeFlag && (!light.isCtrlFunRunning) {
+				light.ControlAwayModStatus(starthour, startminute, finishhour, finishminute)
+			}
+			if (!leaveHomeFlag) && light.isCtrlFunRunning {
+				light.stopCtrlFunc <- struct{}{}
+			}
 		}
 	}
 
+}
+
+func convertToWeekDay(v uint32) string {
+	var weekinfo string
+	if (v & 1) > 0 {
+		weekinfo = "星期一, "
+	}
+	if (v & 2) > 0 {
+		weekinfo = weekinfo + "星期二, "
+	}
+	if (v & 4) > 0 {
+		weekinfo = weekinfo + "星期三, "
+	}
+	if (v & 8) > 0 {
+		weekinfo = weekinfo + "星期四, "
+	}
+	if (v & 16) > 0 {
+		weekinfo = weekinfo + "星期五, "
+	}
+	if (v & 32) > 0 {
+		weekinfo = weekinfo + "星期六, "
+	}
+	if (v & 64) > 0 {
+		weekinfo = weekinfo + "星期日"
+	}
+	return weekinfo
 }
 
 // func getWeekDayValue(v int) uint32 {

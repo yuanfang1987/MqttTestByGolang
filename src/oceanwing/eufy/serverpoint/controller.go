@@ -53,7 +53,7 @@ func (s *MqttServerPoint) RunMqttService(clientid, username, pwd, broker string,
 	s.Username = username
 	s.Pwd = pwd
 	s.Broker = broker
-	s.SubTopic = "DEVICE/+/+/PUH_MESSAGE" // T1012
+	s.SubTopic = "DEVICE/+/+/+" // T1012, PUH_MESSAGE
 	s.NeedCA = ca
 	s.SubHandler = func(c MQTT.Client, msg MQTT.Message) {
 		go s.distributeMsg(msg)
@@ -76,7 +76,7 @@ func (s *MqttServerPoint) distributeMsg(message MQTT.Message) {
 	}
 }
 
-// SetAwayModeByRESTfulAPI hh.
+// SetAwayModeByRESTfulAPI hh..
 func (s *MqttServerPoint) SetAwayModeByRESTfulAPI(email, pwd, clientid, clientse string, start, end int) {
 	if len(s.devices) == 0 {
 		log.Error("No device found.")
@@ -91,7 +91,7 @@ func (s *MqttServerPoint) SetAwayModeByRESTfulAPI(email, pwd, clientid, clientse
 		go appUser.GetAwayModeInfo(dev.GetDeviceID())
 		ok := <-appUser.EnableLeaveMode
 		if ok {
-			dev.ControlAwayModStatus(appUser.LeaveModeStart, appUser.LeaveModeEnd)
+			dev.ControlAwayModStatus(appUser.LeaveModeStart.Hour(), appUser.LeaveModeStart.Minute(), appUser.LeaveModeEnd.Hour(), appUser.LeaveModeEnd.Minute())
 			log.Infof("设备 %s (%s) 设置离家模式并获取配置数据成功", dev.GetProductKey(), dev.GetProductCode())
 		} else {
 			log.Infof("设备 %s (%s) 设置离家模式失败", dev.GetProductKey(), dev.GetProductCode())

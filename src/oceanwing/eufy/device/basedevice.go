@@ -2,7 +2,6 @@ package device
 
 import (
 	"fmt"
-	"time"
 )
 
 // EufyDevice 所有 eufy device 的行为接口
@@ -38,7 +37,7 @@ type EufyDevice interface {
 	BuildProtoBufMessage() []byte
 
 	// 控制离家模式的开始和结束
-	ControlAwayModStatus(start, end time.Time)
+	ControlAwayModStatus(int, int, int, int)
 }
 
 type baseDevice struct {
@@ -102,7 +101,7 @@ func (b *baseDevice) PassedOrFailed(flag bool) string {
 	return "Failed"
 }
 
-func (b *baseDevice) ControlAwayModStatus(start, end time.Time) {
+func (b *baseDevice) ControlAwayModStatus(int, int, int, int) {
 	fmt.Println("ControlAwayModStatus() Not implimented yet.")
 }
 
