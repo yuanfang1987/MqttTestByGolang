@@ -297,7 +297,7 @@ func (light *Light) leaveModeTest(devInfo *lightT1012.DeviceMessage_ReportDevBas
 	}
 }
 
-// 解析心跳
+// 解析设备心跳
 func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 	deviceMsg := &lightT1012.DeviceMessage{}
 	err := proto.Unmarshal(incomingPayload, deviceMsg)
@@ -433,41 +433,151 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 
 }
 
-func getWeekDayValue(v int) uint32 {
-	var re uint32
-	switch v {
-	case 0:
-		re = 64
-	case 1:
-		re = 1
-	case 2:
-		re = 2
-	case 3:
-		re = 4
-	case 4:
-		re = 8
-	case 5:
-		re = 16
-	case 6:
-		re = 32
+func (light *Light) unMarshalServerMsg(incomingPayload []byte) {
+	serMsg := &lightT1012.ServerMessage{}
+	err := proto.Unmarshal(incomingPayload, serMsg)
+	if err != nil {
+		log.Errorf("解析服务器消息失败: %s", err)
+		return
 	}
-	log.Debugf("weekday: %d, value: %d", v, re)
-	return re
+
+	// session id
+	log.Infof("Session ID: %d", serMsg.GetSessionId())
+
+	// SetLightData
+	setlightdata := serMsg.GetSetLightData()
+	if setlightdata != nil {
+		log.Info("==解析出控制灯泡亮度色温的消息==")
+		cmd := lightT1012.CmdType_name[int32(setlightdata.GetType())]
+		log.Infof("------指令类型: %s", cmd)
+
+		lightctrl := setlightdata.GetLightCtl()
+		if lightctrl != nil {
+			log.Infof("------亮度: %d", lightctrl.GetLum())
+			log.Infof("------色温: %d", lightctrl.GetColorTemp())
+		}
+
+		status := lightT1012.LIGHT_ONOFF_STATUS_name[int32(setlightdata.GetOnoffStatus())]
+		log.Infof("------开关状态: %s", status)
+	}
+
+	// time and alram
+	timeAndAlarm := serMsg.GetSync_Time_Alarm()
+	if timeAndAlarm != nil {
+		log.Info("==解析出时间和闹钟的消息==")
+		cmd := lightT1012.CmdType_name[int32(timeAndAlarm.GetType())]
+		log.Infof("------指令类型: %s", cmd)
+
+		synctime := timeAndAlarm.GetTime()
+		if synctime != nil {
+			log.Info("------时间信息：")
+			log.Infof("------年： %d", synctime.GetYear())
+			log.Infof("------月： %d", synctime.GetMonth())
+			log.Infof("------日： %d", synctime.GetDay())
+			log.Infof("------weekday: %d", synctime.GetWeekday())
+			log.Infof("------时： %d", synctime.GetHours())
+			log.Infof("------分： %d", synctime.GetMinutes())
+			log.Infof("------秒： %d", synctime.GetSeconds())
+		}
+
+		alarm := timeAndAlarm.GetAlarm()
+		if alarm != nil {
+			log.Info("------闹钟信息：")
+			alarmRecordData := alarm.GetAlarmRecordData()
+			for i, v := range alarmRecordData {
+				log.Infof("=====第 %d 个闹钟信息====", i+1)
+				alarmMsg := v.GetAlarmMesage()
+				if alarmMsg != nil {
+					log.Infof("------闹钟，时：%d", alarmMsg.GetHours())
+					log.Infof("------闹钟，分: %d", alarmMsg.GetMinutes())
+					// log.Infof("------闹钟，秒：%d", alarmMsg.get) 旧版protobuf定义文件没有秒，新版有
+					log.Infof("------闹钟，是否重复: %t", alarmMsg.GetRepetiton())
+					weekinfo := convertToWeekDay(alarmMsg.GetWeekInfo())
+					log.Infof("------闹钟，WeekInfo：%s", weekinfo)
+				}
+
+				alarmEvent := v.GetAlarmEvent()
+				if alarmEvent != nil {
+					eventType := lightT1012.SyncAlarmRecordMessage_EventType_name[int32(alarmEvent.GetType())]
+					log.Infof("------闹钟事件, 类型：%s", eventType)
+					lightCTRL := alarmEvent.GetLightCtl()
+					if lightCTRL != nil {
+						log.Infof("------闹钟事件, 亮度: %d", lightCTRL.GetLum())
+						log.Infof("------闹钟事件, 色温: %d", lightCTRL.GetColorTemp())
+					}
+				}
+			}
+		}
+	}
+
+	// Power up light status
+	powerUpLightStatus := serMsg.GetSetPowerupLightStatus()
+	if powerUpLightStatus != nil {
+		log.Info("==解析出灯泡上电时的初始状态信息==")
+		cmd := lightT1012.CmdType_name[int32(powerUpLightStatus.GetType())]
+		log.Infof("------指令类型: %s", cmd)
+		status := lightT1012.ServerMessage_SetPowerUpLightStatus_POWERUP_LIGHT_STATUS_name[int32(powerUpLightStatus.GetPowrupStatus())]
+		log.Infof("------状态: %s", status)
+		lightCTRL := powerUpLightStatus.GetLightCtl()
+		if lightCTRL != nil {
+			log.Infof("------亮度: %d", lightCTRL.GetLum())
+			log.Infof("------色温: %d", lightCTRL.GetColorTemp())
+		}
+	}
+
+	// away mode
+	awayMod := serMsg.GetSetAwayMode_Status()
+	if awayMod != nil {
+		log.Info("==解析出离家模式信息==")
+		cmd := lightT1012.CmdType_name[int32(awayMod.GetType())]
+		log.Infof("------指令类型: %s", cmd)
+		leaveMsg := awayMod.GetSyncLeaveModeMsg()
+		if leaveMsg != nil {
+			log.Infof("------离家模式, 开始时间  %d:%d", leaveMsg.GetStartHours(), leaveMsg.GetStartMinutes())
+			log.Infof("------离家模式, 结束时间  %d:%d", leaveMsg.GetFinishHours(), leaveMsg.GetFinishMinutes())
+			log.Infof("------离家模式, 是否重复: %t", leaveMsg.GetRepetiton())
+			log.Infof("------离家模式, WeekInfo: %s", convertToWeekDay(leaveMsg.GetWeekInfo()))
+			log.Infof("------离家模式, 是否开启: %t", leaveMsg.GetLeaveHomeState())
+		}
+	}
+
 }
 
-func buildWeekdays(weekdays []int64) uint32 {
-	var result uint32
-	for _, d := range weekdays {
-		devDay := convertDeviceWeekday(d)
-		result += uint32(1 << uint64(devDay-1))
-	}
-	return result
-}
+// func getWeekDayValue(v int) uint32 {
+// 	var re uint32
+// 	switch v {
+// 	case 0:
+// 		re = 64
+// 	case 1:
+// 		re = 1
+// 	case 2:
+// 		re = 2
+// 	case 3:
+// 		re = 4
+// 	case 4:
+// 		re = 8
+// 	case 5:
+// 		re = 16
+// 	case 6:
+// 		re = 32
+// 	}
+// 	log.Debugf("weekday: %d, value: %d", v, re)
+// 	return re
+// }
+
+// func buildWeekdays(weekdays []int64) uint32 {
+// 	var result uint32
+// 	for _, d := range weekdays {
+// 		devDay := convertDeviceWeekday(d)
+// 		result += uint32(1 << uint64(devDay-1))
+// 	}
+// 	return result
+// }
 
 // Convert 0,1,2,3,4,5,6 -> 1,2,3,4,5,6,7
-func convertDeviceWeekday(weekday int64) int64 {
-	if weekday == int64(time.Sunday) {
-		return 7
-	}
-	return weekday
-}
+// func convertDeviceWeekday(weekday int64) int64 {
+// 	if weekday == int64(time.Sunday) {
+// 		return 7
+// 	}
+// 	return weekday
+// }
