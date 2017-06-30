@@ -260,17 +260,6 @@ func (light *Light) leaveModeTest(devInfo *lightT1012.DeviceMessage_ReportDevBas
 		}
 	}
 
-	// 刚开始进入离家模式时， 先把当前的状态记录下
-	// if !light.holdCurrentInfo {
-	// 	light.mode = mod
-	// 	light.status = stat
-	// 	light.lum = l
-	// 	light.colorTemp = c
-	// 	light.lumTemp = light.lum
-	// 	light.holdCurrentInfo = true
-	// 	log.Info("离家模式开始前，已记录当前灯泡的各种状态")
-	// }
-
 	// 判断心跳数据, mode 字段必须是 1
 	assertFlag = light.PassedOrFailed(1 == mod)
 	testContent = fmt.Sprintf("灯泡 %s (%s) Mode, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, 1, mod)
@@ -588,28 +577,6 @@ func convertToWeekDay(v uint32) string {
 	}
 	return weekinfo
 }
-
-// func getWeekDayValue(v int) uint32 {
-// 	var re uint32
-// 	switch v {
-// 	case 0:
-// 		re = 64
-// 	case 1:
-// 		re = 1
-// 	case 2:
-// 		re = 2
-// 	case 3:
-// 		re = 4
-// 	case 4:
-// 		re = 8
-// 	case 5:
-// 		re = 16
-// 	case 6:
-// 		re = 32
-// 	}
-// 	log.Debugf("weekday: %d, value: %d", v, re)
-// 	return re
-// }
 
 // func buildWeekdays(weekdays []int64) uint32 {
 // 	var result uint32
