@@ -68,7 +68,9 @@ func (s *MqttServerPoint) distributeMsg(message MQTT.Message) {
 	payload := message.Payload()
 	for _, dev := range s.devices {
 		if t == dev.GetSubTopic() || t == dev.GetPubTopic() {
-			dev.SendPayload(t, payload)
+			// 有事没事多开几个 goroutine ，确保消息传递快速畅通
+			go dev.SendPayload(t, payload)
+			//一条消息只可能匹配到一个设备，完了之后立刻结束 for 循环
 			return
 		}
 	}
