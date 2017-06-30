@@ -344,7 +344,7 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 
 	//  CmdType
 	assertFlag = light.PassedOrFailed(lightT1012.CmdType_DEV_REPORT_STATUS == devBaseInfo.GetType())
-	testContent = fmt.Sprintf("灯泡 %s (%s) CmdType, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, lightT1012.CmdType_DEV_REPORT_STATUS, devBaseInfo.GetType())
+	testContent = fmt.Sprintf("灯泡 %s (%s) CmdType, 预期: %s, 实际: %s", light.DevKEY, light.ProdCode, lightT1012.CmdType_DEV_REPORT_STATUS.String(), devBaseInfo.GetType().String())
 	log.Info(testContent)
 
 	cmdTypeResultMap := make(map[string]string)
@@ -355,7 +355,7 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 
 	// Mode
 	assertFlag = light.PassedOrFailed(light.mode == devBaseInfo.GetMode())
-	testContent = fmt.Sprintf("灯泡 %s (%s) Mode, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.mode, devBaseInfo.GetMode())
+	testContent = fmt.Sprintf("灯泡 %s (%s) Mode, 预期: %s, 实际: %s", light.DevKEY, light.ProdCode, light.mode.String(), devBaseInfo.GetMode().String())
 	log.Info(testContent)
 
 	modeResuleMap := make(map[string]string)
@@ -368,7 +368,7 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 
 	// Status
 	assertFlag = light.PassedOrFailed(light.status == devBaseInfo.GetOnoffStatus())
-	testContent = fmt.Sprintf("灯泡 %s (%s) Status, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.status, devBaseInfo.GetOnoffStatus())
+	testContent = fmt.Sprintf("灯泡 %s (%s) Status, 预期: %s, 实际: %s", light.DevKEY, light.ProdCode, light.status.String(), devBaseInfo.GetOnoffStatus().String())
 	log.Info(testContent)
 
 	statusResultMap := make(map[string]string)
