@@ -39,7 +39,8 @@ func NewLight(prodCode, devKey, devid string) EufyDevice {
 	o.DevID = devid
 	o.PubTopicl = "DEVICE/T1012/" + devKey + "/SUB_MESSAGE"
 	o.SubTopicl = "DEVICE/T1012/" + devKey + "/PUH_MESSAGE"
-	o.SubMessage = make(chan []byte)
+	o.DeviceMsg = make(chan []byte)
+	o.ServerMsg = make(chan []byte)
 	log.Infof("Create a Light, product code: %s, device key: %s, device id: %s", prodCode, devKey, devid)
 	return o
 }
@@ -50,9 +51,11 @@ func (light *Light) HandleSubscribeMessage() {
 		log.Debugf("Running handleIncomingMsg function for device: %s", light.DevKEY)
 		for {
 			select {
-			case msg := <-light.SubMessage:
+			case msg := <-light.DeviceMsg:
 				log.Infof("get new incoming message from device: %s", light.DevKEY)
 				light.unMarshalHeartBeatMsg(msg)
+			case <-light.ServerMsg:
+				// to do.
 			}
 		}
 	}()

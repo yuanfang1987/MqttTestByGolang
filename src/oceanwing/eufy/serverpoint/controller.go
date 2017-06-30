@@ -67,8 +67,8 @@ func (s *MqttServerPoint) distributeMsg(message MQTT.Message) {
 	t := message.Topic()
 	payload := message.Payload()
 	for _, dev := range s.devices {
-		if t == dev.GetSubTopic() {
-			dev.SendPayload(payload)
+		if t == dev.GetSubTopic() || t == dev.GetPubTopic() {
+			dev.SendPayload(t, payload)
 			return
 		}
 	}

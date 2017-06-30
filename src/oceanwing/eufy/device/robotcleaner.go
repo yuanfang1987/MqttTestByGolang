@@ -37,17 +37,18 @@ func NewRobotCleaner(prodCode, devKey string) EufyDevice {
 	o.DevKEY = devKey
 	o.PubTopicl = "DEVICE/T2103/" + devKey + "/SUB_MESSAGE"
 	o.SubTopicl = "DEVICE/T2103/" + devKey + "/PUH_MESSAGE"
-	o.SubMessage = make(chan []byte)
+	o.DeviceMsg = make(chan []byte)
+	o.ServerMsg = make(chan []byte)
 	o.caseNum = 1
 	return o
 }
 
-// HandleSubscribeMessage 实现 EufyDevice 接口
+// HandleSubscribeMessage 实现 EufyDevice 接口.
 func (robot *RobotCleaner) HandleSubscribeMessage() {
 	go func() {
 		for {
 			select {
-			case heartBeatInfo := <-robot.SubMessage:
+			case heartBeatInfo := <-robot.DeviceMsg:
 				// heartBeatInfo 是一个[]byte字节数组，长度为20
 				// heartBeatInfo[0]: 固定0xA5，十进制为165
 				// heartBeatInfo[1]: WorkMode, 0x00=暂停   0x01＝定点  0x02=自动 0x03=返回充电    0x04=沿边    0x05=精扫,（0xf0=休眠 WIFI模块主动添加）
@@ -127,6 +128,8 @@ func (robot *RobotCleaner) HandleSubscribeMessage() {
 						}
 					}
 				}
+			case <-robot.ServerMsg:
+				// nothing to do.
 			}
 		}
 	}()

@@ -23,7 +23,8 @@ func NewPlug(prodCode, devKey, devid string) EufyDevice {
 	p.DevID = devid
 	p.PubTopicl = "DEVICE/T1201/" + devKey + "/SUB_MESSAGE"
 	p.SubTopicl = "DEVICE/T1201/" + devKey + "/PUH_MESSAGE"
-	p.SubMessage = make(chan []byte)
+	p.DeviceMsg = make(chan []byte)
+	p.ServerMsg = make(chan []byte)
 	log.Infof("Create a Plug, product code: %s, device key: %s, device id: %s", prodCode, devKey, devid)
 	return p
 }
@@ -34,9 +35,11 @@ func (p *Plug) HandleSubscribeMessage() {
 		log.Debugf("Running handleIncomingMsg function for device: %s", p.DevKEY)
 		for {
 			select {
-			case msg := <-p.SubMessage:
+			case msg := <-p.DeviceMsg:
 				log.Info("get new incoming message from device: %s", p.DevKEY)
 				p.unMarshalDevMessage(msg)
+			case <-p.ServerMsg:
+				// to do .
 			}
 		}
 	}()

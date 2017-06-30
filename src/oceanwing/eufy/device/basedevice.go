@@ -31,8 +31,8 @@ type EufyDevice interface {
 	// 当测试结束时，获取当前Device的心跳总数
 	GetDecodedheartBeat() int
 
-	// 把订阅来的消息转给指定的 Channel
-	SendPayload([]byte)
+	// 把订阅的消息转给指定的 Channel
+	SendPayload(string, []byte)
 
 	// 组装消息并序列化，用于 publish
 	BuildProtoBufMessage() []byte
@@ -47,7 +47,8 @@ type baseDevice struct {
 	DevID                      string //预留，不一定能用得到
 	PubTopicl                  string
 	SubTopicl                  string
-	SubMessage                 chan []byte
+	DeviceMsg                  chan []byte
+	ServerMsg                  chan []byte
 	IsCmdSent                  bool
 	IsTestPassed               bool
 	CmdSentQuantity            int //下发的指令数量
@@ -84,8 +85,13 @@ func (b *baseDevice) GetDecodedheartBeat() int {
 	return b.DecodeHeartBeatMsgQuantity
 }
 
-func (b *baseDevice) SendPayload(payload []byte) {
-	b.SubMessage <- payload
+func (b *baseDevice) SendPayload(topic string, payload []byte) {
+	if topic == b.SubTopicl {
+		b.DeviceMsg <- payload
+	} else if topic == b.PubTopicl {
+		b.ServerMsg <- payload
+	}
+
 }
 
 func (b *baseDevice) PassedOrFailed(flag bool) string {
