@@ -123,3 +123,15 @@ type Person struct {
 	name string
 	age  int
 }
+
+// User hh.
+type User struct {
+	Name string
+	Age  int
+	ID   string
+}
+
+// SayHello h.
+func (u *User) SayHello() {
+	fmt.Printf("I'm %s, ID is %s\n", u.Name, u.ID)
+}

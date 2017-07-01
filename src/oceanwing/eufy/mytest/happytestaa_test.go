@@ -2,8 +2,8 @@ package mytest
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
-	"time"
 )
 
 // func Test_pbhaha(t *testing.T) {
@@ -35,20 +35,40 @@ import (
 // 	fmt.Printf("v2 type: %v", v2typ)
 // }
 
-func Test_timeParse(t *testing.T) {
-	loc, err := time.LoadLocation("Asia/Shanghai")
-	if err != nil {
-		fmt.Printf("location invalid: %s\n", err)
-		return
+func Test_reflect1(t *testing.T) {
+	fmt.Println("run Test_reflect1")
+	var x = 3.4
+	v := reflect.ValueOf(x)
+	fmt.Println("Type: ", v.Type())
+	fmt.Println("kind is float64 :", v.Kind() == reflect.Float64)
+	fmt.Println("value: ", v.Float())
+}
+
+func Test_reflect2(t *testing.T) {
+	fmt.Println("run Test_reflect2")
+	type MyInt int
+	var x MyInt = 7
+	v := reflect.ValueOf(x)
+	fmt.Println("Type: ", v.Type())
+	fmt.Println("Kind: ", v.Kind())
+}
+
+func Test_reflect3(t *testing.T) {
+	fmt.Println("run Test_reflect3")
+	tonydon := &User{"TangXiaodong", 100, "0000123"}
+	object := reflect.ValueOf(tonydon)
+	fmt.Println("object Type: ", object.Type())
+	fmt.Println("object Kind: ", object.Kind())
+	myref := object.Elem()
+	fmt.Println("myref Type: ", myref.Type())
+	fmt.Println("myref Kind: ", myref.Kind())
+	typeOfType := myref.Type()
+	for i := 0; i < myref.NumField(); i++ {
+		field := myref.Field(i)
+		fmt.Printf("%d. %s %s = %v \n", i, typeOfType.Field(i).Name, field.Type(), field.Interface())
 	}
-	fmt.Printf("current location is: %s\n", loc.String())
-	lay := "2006-01-02 15:04:05"
-	now := time.Now()
-	expectedTime := fmt.Sprintf("%d-%d-%d %d:%d:%d", now.Year(), now.Month(), now.Day(), 13, 20, 0)
-	ti, err := time.ParseInLocation(lay, expectedTime, loc)
-	if err != nil {
-		fmt.Printf("parse time error: %s\n", err)
-		return
-	}
-	fmt.Printf("parse time is: %d:%d\n", ti.Hour(), ti.Minute())
+	v := object.MethodByName("SayHello")
+	fmt.Println("v Type: ", v.Type())
+	fmt.Println("v Kind: ", v.Kind())
+	v.Call([]reflect.Value{})
 }
