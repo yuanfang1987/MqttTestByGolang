@@ -87,7 +87,11 @@ func (s *MqttServerPoint) SetAwayModeByRESTfulAPI(email, pwd, clientid, clientse
 	appUser.Login()
 
 	for _, dev := range s.devices {
+		// 停掉之前的 timer
+		appUser.StopAwayMode(dev.GetDeviceID())
+		// 设置新的离家模式
 		appUser.SetAwayMode(start, end, dev.GetDeviceID())
+		// 获取离家模式信息
 		go appUser.GetAwayModeInfo(dev.GetDeviceID())
 		ok := <-appUser.EnableLeaveMode
 		if ok {
