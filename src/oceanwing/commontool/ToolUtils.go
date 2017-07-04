@@ -31,6 +31,11 @@ func GetCurrentTime() string {
 	return time.Unix(time.Now().Unix(), 0).Format("2006-01-02 15:04:05")
 }
 
+// GetTimeAsFileName hh.
+func GetTimeAsFileName() string {
+	return time.Unix(time.Now().Unix(), 0).Format("2006-01-02-15-04-05")
+}
+
 // RandInt64 取值范围：大于等于 min, 小于 max
 func RandInt64(min, max int64) int64 {
 	maxBigInt := big.NewInt(max)

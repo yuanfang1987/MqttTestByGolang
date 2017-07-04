@@ -92,3 +92,8 @@ func Test_RandInt64(t *testing.T) {
 		fmt.Printf("value: %d\n", d)
 	}
 }
+
+func Test_getfileName(t *testing.T) {
+	str := GetTimeAsFileName()
+	fmt.Printf("file name is: %s\n", str)
+}
