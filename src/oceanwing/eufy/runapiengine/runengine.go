@@ -82,16 +82,24 @@ func Runapitest() {
 		testDataMap := getTestData(testDataID)
 		// 根据 category 新建一个 API 实例
 		api = build.CreateNewAPI(category, urlPath, httpMethod, testDataMap)
-		// 根据测试数据，构造出一个请求 body
-		actURL, body := api.BuildRequestBody(testDataMap)
+		// 根据测试数据，构造出一个请求 body.
+		actURL, body := api.BuildRequestBody()
 		// 重新构造URL
 		if actURL != "" {
 			urlPath = actURL
 		}
 		// 发出请求并获取结果
-		jsonResponse := client.doItNow(httpMethod, urlPath, body)
+		jsonResponse := client.doItNow(httpMethod, urlPath, body, testDataMap)
 		// 解析并判断结果
-		resultString := api.DecodeAndAssertResult(jsonResponse)
+		resultMAP := api.DecodeAndAssertResult(jsonResponse)
+		// 如果存在 uid 和 token， 则更新 client 的 uid 和 token，因为可能使用了新的用户登录
+		if UID, ok := resultMAP["uid"]; ok {
+			client.uid = UID
+		}
+		if TOKEN, ok := resultMAP["token"]; ok {
+			client.token = TOKEN
+		}
+		resultString := resultMAP["resultString"]
 		// 把结果写入原文件
 		cells[8].SetString(passOrNot(resultString))
 		if resultString != "" {
@@ -142,18 +150,44 @@ func passOrNot(str string) string {
 }
 
 // 构建请求体，包括必要的 header及 post body
-func (c *HTTPClient) buildRequest(method, url string, bd []byte) *http.Request {
+func (c *HTTPClient) buildRequest(method, url string, bd []byte, headerMap map[string]string) *http.Request {
 	body := bytes.NewBuffer(bd)
 	req, err := http.NewRequest(method, serverHost+url, body)
 	if err != nil {
 		log.Errorf("build new request error: %s", err)
 		return nil
 	}
-	req.Header.Add("timezone", "Asia/Shanghai")
-	req.Header.Add("country", "CN")
-	req.Header.Add("language", "zh-Hans-CN")
+
+	// 时区
+	if tz, ok := headerMap["timezone"]; ok {
+		req.Header.Add("timezone", tz)
+	} else {
+		req.Header.Add("timezone", "Asia/Shanghai")
+	}
+
+	// 国家
+	if ct, ok := headerMap["country"]; ok {
+		req.Header.Add("country", ct)
+	} else {
+		req.Header.Add("country", "CN")
+	}
+
+	// 语言
+	if lang, ok := headerMap["language"]; ok {
+		req.Header.Add("language", lang)
+	} else {
+		req.Header.Add("language", "zh-Hans-CN")
+	}
+
 	req.Header.Add("openudid", "yuanfang1987") // 这个值没什么意义，随便填， 没有也行.
-	req.Header.Add("category", "eufy-app")
+
+	// category
+	if cate, ok := headerMap["category"]; ok {
+		req.Header.Add("category", cate)
+	} else {
+		req.Header.Add("category", "eufy-app")
+	}
+
 	req.Header.Add("Content-Type", "application/json;charset=utf-8")
 	if c.uid != "" {
 		req.Header.Add("uid", c.uid)
@@ -205,8 +239,8 @@ func (c *HTTPClient) handleResponce() {
 	}()
 }
 
-func (c *HTTPClient) doItNow(method, url string, body []byte) *splJSON.Json {
-	c.req <- c.buildRequest(method, url, body)
+func (c *HTTPClient) doItNow(method, url string, body []byte, headers map[string]string) *splJSON.Json {
+	c.req <- c.buildRequest(method, url, body, headers)
 	j := <-c.jsonResult
 	log.Infof("Get response body: %v", j)
 	return j
