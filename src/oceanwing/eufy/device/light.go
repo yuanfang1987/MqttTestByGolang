@@ -305,7 +305,7 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 
 	noneParaMsg := deviceMsg.GetNonParaMsg()
 	if noneParaMsg != nil {
-		log.Infof("无参数消息, 指令类型: %d", noneParaMsg.GetType())
+		log.Infof("无参数消息, 指令类型: %s", noneParaMsg.GetType().String())
 	}
 
 	devBaseInfo := deviceMsg.GetReportDevBaseInfo()
