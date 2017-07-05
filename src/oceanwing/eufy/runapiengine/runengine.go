@@ -176,7 +176,7 @@ func (c *HTTPClient) outgoing() {
 					defer resp.Body.Close()
 					bd, _ := ioutil.ReadAll(resp.Body)
 					c.res <- bd
-					log.Debug("send response data to channel res")
+					log.Info("send response data to channel res")
 				} else {
 					log.Errorf("request to server fail: %s", err)
 					c.res <- nil
@@ -184,7 +184,6 @@ func (c *HTTPClient) outgoing() {
 			}
 		}
 	}()
-	log.Debug("Run outgoing() function.")
 }
 
 // handleResponce 用于统一处理HTTP请求的返回数据，主要是转为simple JSON的对象
@@ -199,16 +198,16 @@ func (c *HTTPClient) handleResponce() {
 					log.Errorf("decode the res data to simpleJSON error: %s", err)
 				} else {
 					c.jsonResult <- JSONJinstance
-					log.Debug("send simpleJSON to jsonResult")
+					log.Info("send simpleJSON to jsonResult")
 				}
 			}
 		}
 	}()
-	log.Debug("Run handleResponce() function")
 }
 
 func (c *HTTPClient) doItNow(method, url string, body []byte) *splJSON.Json {
 	c.req <- c.buildRequest(method, url, body)
 	j := <-c.jsonResult
+	log.Infof("Get response body: %v", j)
 	return j
 }

@@ -22,6 +22,7 @@ func NewUser(category, url, method string, data map[string]string) base.RESTfulA
 	u.APIMethod = method
 	u.DataMap = data
 	u.GetAPIName()
+	log.Info("Build a new User API.")
 	return u
 }
 
