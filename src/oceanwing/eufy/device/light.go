@@ -163,50 +163,6 @@ func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage {
 	return o
 }
 
-// func (light *Light) buildSetAwayModeMsg() *lightT1012.ServerMessage {
-// 	// set away mode msg
-// 	startTime := time.Now().Add(3 * time.Minute)
-// 	finishTime := time.Now().Add(13 * time.Minute)
-
-// 	// weekday := getWeekDayValue(int(startTime.Weekday()))
-
-// 	weekday := int64(startTime.Weekday())
-// 	ss := []int64{weekday}
-// 	bb := buildWeekdays(ss)
-// 	log.Debugf("weekday: %d", bb)
-
-// 	startHours := uint32(startTime.Hour())
-// 	startMinutes := uint32(startTime.Minute())
-
-// 	finishHours := uint32(finishTime.Hour())
-// 	finishMinutes := uint32(finishTime.Minute())
-
-// 	awayMod := &lightT1012.ServerMessage_SetAwayMode_Status{
-// 		SetAwayMode_Status: &lightT1012.ServerMessage_SetAwayMode{
-// 			Type: lightT1012.CmdType_REMOTE_SET_AWAYMODE_STATUS.Enum(),
-// 			SyncLeaveModeMsg: &serverAwayMode.LeaveHomeMessage{
-// 				StartHours:     proto.Uint32(startHours),
-// 				StartMinutes:   proto.Uint32(startMinutes),
-// 				FinishHours:    proto.Uint32(finishHours),
-// 				FinishMinutes:  proto.Uint32(finishMinutes),
-// 				Repetiton:      proto.Bool(true),
-// 				WeekInfo:       proto.Uint32(bb),
-// 				LeaveHomeState: proto.Bool(true),
-// 				// LeaveMode:      proto.Uint32(leaveMode), 	// 目前这个字段用不着
-// 			},
-// 		},
-// 	}
-
-// 	o := &lightT1012.ServerMessage{
-// 		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
-// 		RemoteMessage: awayMod,
-// 	}
-
-// 	log.Infof("设置离家模式, 开始时间: %d:%d, 结束时间: %d:%d", startHours, startMinutes, finishHours, finishMinutes)
-
-// 	return o
-// }
-
 // ControlAwayModStatus 实现了 EufyDevice 接口
 func (light *Light) ControlAwayModStatus(startHour, startMinute, endHour, endMinute int) {
 	go func() {
