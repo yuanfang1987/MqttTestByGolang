@@ -39,8 +39,8 @@ func NewLight(prodCode, devKey, devid string) EufyDevice {
 	o.ProdCode = prodCode
 	o.DevKEY = devKey
 	o.DevID = devid
-	o.PubTopicl = "DEVICE/T1012/" + devKey + "/SUB_MESSAGE"
-	o.SubTopicl = "DEVICE/T1012/" + devKey + "/PUH_MESSAGE"
+	o.PubTopicl = "DEVICE/" + prodCode + "/" + devKey + "/SUB_MESSAGE"
+	o.SubTopicl = "DEVICE/" + prodCode + "/" + devKey + "/PUH_MESSAGE"
 	o.DeviceMsg = make(chan []byte)
 	o.ServerMsg = make(chan []byte)
 	o.stopCtrlFunc = make(chan struct{})
