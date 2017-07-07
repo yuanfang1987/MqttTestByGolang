@@ -76,6 +76,7 @@ func (light *LightWithColor) setColorLightMode() *light1013.ServerMessage {
 				Red:   proto.Uint32(red),
 				Green: proto.Uint32(green),
 				Blue:  proto.Uint32(blue),
+				White: proto.Uint32(80),
 			},
 		},
 	}
@@ -84,6 +85,7 @@ func (light *LightWithColor) setColorLightMode() *light1013.ServerMessage {
 		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
 		RemoteMessage: colorlight,
 	}
+	log.Infof("设置彩灯, Red: %d, Green: %d, Blue: %d", red, green, blue)
 	return serMsg
 }
 
