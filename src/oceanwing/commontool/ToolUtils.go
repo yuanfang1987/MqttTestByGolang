@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -101,19 +100,18 @@ func BuildTlSConfig(caPath string) {
 
 // InitLogInstance hh.
 func InitLogInstance(level string) {
-	logformat := `
-		<seelog minlevel="%s">
+	logConfig := `
+		<seelog minlevel="` + level + `">
 			<outputs formatid="main">
 			    <console />
 				<buffered size="10000" flushperiod="1000">  
-					<file path="./%s"/>
+					<file path="./log.log"/>
         		</buffered>
 			</outputs>
 			<formats>
 				<format id="main" format="%Date %Time [%LEVEL] %Msg%n"/>
 			</formats>
 		</seelog>`
-	logConfig := fmt.Sprintf(logformat, level, GetTimeAsFileName()+"-log.log")
 	logger, _ := log.LoggerFromConfigAsBytes([]byte(logConfig))
 	log.ReplaceLogger(logger)
 }

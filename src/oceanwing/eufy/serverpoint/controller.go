@@ -38,6 +38,8 @@ func (s *MqttServerPoint) SetupRunningDevices(keys []string) {
 		switch codeAndKey[0] {
 		case "T1012", "T1011":
 			dev = device.NewLight(codeAndKey[0], codeAndKey[1], codeAndKey[2])
+		case "T1013", "T1604":
+			dev = device.NewLightWithColor(codeAndKey[0], codeAndKey[1], codeAndKey[2])
 		case "T2103":
 			dev = device.NewRobotCleaner(codeAndKey[0], codeAndKey[1])
 		}
