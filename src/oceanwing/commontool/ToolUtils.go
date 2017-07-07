@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -29,6 +30,11 @@ func GenerateClientID() string {
 // GetCurrentTime hh..
 func GetCurrentTime() string {
 	return time.Unix(time.Now().Unix(), 0).Format("2006-01-02 15:04:05")
+}
+
+// GetTimeAsFileName hh.
+func GetTimeAsFileName() string {
+	return time.Unix(time.Now().Unix(), 0).Format("2006-01-02-15-04-05")
 }
 
 // RandInt64 取值范围：大于等于 min, 小于 max
@@ -95,18 +101,19 @@ func BuildTlSConfig(caPath string) {
 
 // InitLogInstance hh.
 func InitLogInstance(level string) {
-	logConfig := `
-		<seelog minlevel="` + level + `">
+	logformat := `
+		<seelog minlevel="%s">
 			<outputs formatid="main">
 			    <console />
 				<buffered size="10000" flushperiod="1000">  
-					<file path="./log.log"/>
+					<file path="./%s"/>
         		</buffered>
 			</outputs>
 			<formats>
 				<format id="main" format="%Date %Time [%LEVEL] %Msg%n"/>
 			</formats>
 		</seelog>`
+	logConfig := fmt.Sprintf(logformat, level, GetTimeAsFileName()+"-log.log")
 	logger, _ := log.LoggerFromConfigAsBytes([]byte(logConfig))
 	log.ReplaceLogger(logger)
 }
