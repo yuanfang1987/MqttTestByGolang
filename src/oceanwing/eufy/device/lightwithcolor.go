@@ -52,7 +52,7 @@ func (light *LightWithColor) HandleSubscribeMessage() {
 // BuildProtoBufMessage 实现 EufyDevice 接口
 func (light *LightWithColor) BuildProtoBufMessage() []byte {
 	var serMsg *light1013.ServerMessage
-	serMsg = light.setWhiteLightMode()
+	serMsg = light.setDataForLight(1)
 
 	data, err := proto.Marshal(serMsg)
 	if err != nil {
@@ -62,61 +62,157 @@ func (light *LightWithColor) BuildProtoBufMessage() []byte {
 	return data
 }
 
-// 白色模式， 和 T1012 一样的
-func (light *LightWithColor) setWhiteLightMode() *light1013.ServerMessage {
-	whiteLight := &light1013.ServerMessage_SetLightData_{}
-	lightData := &light1013.ServerMessage_SetLightData{}
-	lightData.Type = light1013.CmdType_REMOTE_SET_LIGHTING_PARA.Enum()
-	lightData.Mode = light1013.LIGHT_DEV_MODE_WHITE_LIGHT_MODE.Enum()
-	// lightData.White = &lightEvent.LampLightLevelCtlMessage{
-	// 	Lum:       proto.Uint32(88),
-	// 	ColorTemp: proto.Uint32(88),
-	// }
+func (light *LightWithColor) setDataForLight(mode int) *light1013.ServerMessage {
+	setlightdata := &light1013.ServerMessage_SetLightData_{}
 
-	white := &lightEvent.LampLightLevelCtlMessage{}
-	brightness := uint32(commontool.RandInt64(1, 101))
-	color := uint32(commontool.RandInt64(1, 101))
-	white.Lum = proto.Uint32(brightness)
-	white.ColorTemp = proto.Uint32(color)
+	lightdata := &light1013.ServerMessage_SetLightData{}
+	lightdata.Type = light1013.CmdType_REMOTE_SET_LIGHTING_PARA.Enum()
 
-	lightData.White = white
+	switch mode {
+	case 0:
+		// 白光模式
+		lightdata.Mode = light1013.LIGHT_DEV_MODE_WHITE_LIGHT_MODE.Enum()
+		lightdata.White = light.buildWhiteLightData()
+	case 1:
+		// 彩光模式
+		lightdata.Mode = light1013.LIGHT_DEV_MODE_COLOR_LIGHT_MODE.Enum()
+		lightdata.Rgb = light.buildColorLightData()
+	case 2:
+		// 流光模式
+		lightdata.Mode = light1013.LIGHT_DEV_MODE_STREAMER_LIGHT_MODE.Enum()
+		lightdata.StreamLight = light.buildStreamLightData()
+	case 4:
+		// 开关灯
+		lightdata.OnoffStatus = light.setLightOnOffStatus(true)
+	}
 
-	whiteLight.SetLightData = lightData
-
+	setlightdata.SetLightData = lightdata
 	serMsg := &light1013.ServerMessage{
 		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
-		RemoteMessage: whiteLight,
+		RemoteMessage: setlightdata,
 	}
 
 	return serMsg
 }
 
-// 彩光模式
-func (light *LightWithColor) setColorLightMode() *light1013.ServerMessage {
+// 构造白光模式的数据，用随机数来产生亮度和色温
+func (light *LightWithColor) buildWhiteLightData() *lightEvent.LampLightLevelCtlMessage {
+	brightness := uint32(commontool.RandInt64(1, 101))
+	color := uint32(commontool.RandInt64(1, 101))
+
+	return &lightEvent.LampLightLevelCtlMessage{
+		Lum:       proto.Uint32(brightness),
+		ColorTemp: proto.Uint32(color),
+	}
+}
+
+// 构造彩光模式的数据
+func (light *LightWithColor) buildColorLightData() *lightEvent.LampLightRgbCtlMessage {
 	red := uint32(commontool.RandInt64(0, 255))
 	green := uint32(commontool.RandInt64(0, 255))
 	blue := uint32(commontool.RandInt64(0, 255))
+	brightness := uint32(commontool.RandInt64(10, 100))
 
-	colorlight := &light1013.ServerMessage_SetLightData_{
-		SetLightData: &light1013.ServerMessage_SetLightData{
-			Type: light1013.CmdType_REMOTE_SET_LIGHTING_PARA.Enum(),
-			Mode: light1013.LIGHT_DEV_MODE_COLOR_LIGHT_MODE.Enum(),
-			Rgb: &lightEvent.LampLightRgbCtlMessage{
-				Red:   proto.Uint32(red),
-				Green: proto.Uint32(green),
-				Blue:  proto.Uint32(blue),
-				White: proto.Uint32(80),
-			},
-		},
+	return &lightEvent.LampLightRgbCtlMessage{
+		Red:   proto.Uint32(red),
+		Green: proto.Uint32(green),
+		Blue:  proto.Uint32(blue),
+		White: proto.Uint32(brightness),
 	}
-
-	serMsg := &light1013.ServerMessage{
-		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
-		RemoteMessage: colorlight,
-	}
-	log.Infof("设置彩灯, Red: %d, Green: %d, Blue: %d", red, green, blue)
-	return serMsg
 }
+
+// 构造流光模式的数据
+func (light *LightWithColor) buildStreamLightData() *light1013.StreamLight {
+	brightness := int32(commontool.RandInt64(20, 100))
+
+	points := &light1013.ColorPointMessage{
+		PointA: light.buildRGBData(),
+		PointB: light.buildRGBData(),
+		PointC: light.buildRGBData(),
+		PointD: light.buildRGBData(),
+	}
+
+	stream := &light1013.StreamLight{}
+
+	stream.Time = proto.Int32(1)
+	stream.BrightnessPercent = proto.Int32(brightness)
+	stream.Point = points
+
+	return stream
+}
+
+// RGB 数值, 暂时随机产生
+func (light *LightWithColor) buildRGBData() *light1013.RGBMessage {
+	red := int32(commontool.RandInt64(0, 255))
+	green := int32(commontool.RandInt64(0, 255))
+	blue := int32(commontool.RandInt64(0, 255))
+
+	return &light1013.RGBMessage{
+		Red:   proto.Int32(red),
+		Green: proto.Int32(green),
+		Blue:  proto.Int32(blue),
+	}
+}
+
+// 开关灯
+func (light *LightWithColor) setLightOnOffStatus(b bool) *light1013.LIGHT_ONOFF_STATUS {
+	if b {
+		return light1013.LIGHT_ONOFF_STATUS_ON.Enum()
+	}
+	return light1013.LIGHT_ONOFF_STATUS_OFF.Enum()
+}
+
+// 白色模式， 和 T1012 一样的
+// func (light *LightWithColor) setWhiteLightMode() *light1013.ServerMessage {
+// 	whiteLight := &light1013.ServerMessage_SetLightData_{}
+// 	lightData := &light1013.ServerMessage_SetLightData{}
+// 	lightData.Type = light1013.CmdType_REMOTE_SET_LIGHTING_PARA.Enum()
+// 	lightData.Mode = light1013.LIGHT_DEV_MODE_WHITE_LIGHT_MODE.Enum()
+
+// 	white := &lightEvent.LampLightLevelCtlMessage{}
+// 	brightness := uint32(commontool.RandInt64(1, 101))
+// 	color := uint32(commontool.RandInt64(1, 101))
+// 	white.Lum = proto.Uint32(brightness)
+// 	white.ColorTemp = proto.Uint32(color)
+
+// 	lightData.White = white
+
+// 	whiteLight.SetLightData = lightData
+
+// 	serMsg := &light1013.ServerMessage{
+// 		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
+// 		RemoteMessage: whiteLight,
+// 	}
+
+// 	return serMsg
+// }
+
+// 彩光模式
+// func (light *LightWithColor) setColorLightMode() *light1013.ServerMessage {
+// 	red := uint32(commontool.RandInt64(0, 255))
+// 	green := uint32(commontool.RandInt64(0, 255))
+// 	blue := uint32(commontool.RandInt64(0, 255))
+
+// 	colorlight := &light1013.ServerMessage_SetLightData_{
+// 		SetLightData: &light1013.ServerMessage_SetLightData{
+// 			Type: light1013.CmdType_REMOTE_SET_LIGHTING_PARA.Enum(),
+// 			Mode: light1013.LIGHT_DEV_MODE_COLOR_LIGHT_MODE.Enum(),
+// 			Rgb: &lightEvent.LampLightRgbCtlMessage{
+// 				Red:   proto.Uint32(red),
+// 				Green: proto.Uint32(green),
+// 				Blue:  proto.Uint32(blue),
+// 				White: proto.Uint32(80),
+// 			},
+// 		},
+// 	}
+
+// 	serMsg := &light1013.ServerMessage{
+// 		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
+// 		RemoteMessage: colorlight,
+// 	}
+// 	log.Infof("设置彩灯, Red: %d, Green: %d, Blue: %d", red, green, blue)
+// 	return serMsg
+// }
 
 /*--------------------------------------------------------------------------------------------------------------------------------------*/
 
