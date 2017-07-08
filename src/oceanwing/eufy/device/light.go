@@ -445,7 +445,7 @@ func (light *Light) unMarshalServerMsg(incomingPayload []byte) {
 					log.Infof("------闹钟，分: %d", alarmMsg.GetMinutes())
 					// log.Infof("------闹钟，秒：%d", alarmMsg.get) 旧版protobuf定义文件没有秒，新版有
 					log.Infof("------闹钟，是否重复: %t", alarmMsg.GetRepetiton())
-					weekinfo := convertToWeekDay(alarmMsg.GetWeekInfo())
+					weekinfo := commontool.ConvertToWeekDay(alarmMsg.GetWeekInfo())
 					log.Infof("------闹钟，WeekInfo：%s", weekinfo)
 				}
 
@@ -493,7 +493,7 @@ func (light *Light) unMarshalServerMsg(incomingPayload []byte) {
 			log.Infof("------离家模式, 开始时间  %d:%d", starthour, startminute)
 			log.Infof("------离家模式, 结束时间  %d:%d", finishhour, finishminute)
 			log.Infof("------离家模式, 是否重复: %t", leaveMsg.GetRepetiton())
-			log.Infof("------离家模式, WeekInfo: %s", convertToWeekDay(leaveMsg.GetWeekInfo()))
+			log.Infof("------离家模式, WeekInfo: %s", commontool.ConvertToWeekDay(leaveMsg.GetWeekInfo()))
 			leaveHomeFlag := leaveMsg.GetLeaveHomeState()
 			log.Infof("------离家模式, 是否开启: %t", leaveHomeFlag)
 			// 如果服务器下发的 离家模式 为 true，且控制函数没有运行，则跑之.
@@ -507,32 +507,6 @@ func (light *Light) unMarshalServerMsg(incomingPayload []byte) {
 		}
 	}
 
-}
-
-func convertToWeekDay(v uint32) string {
-	var weekinfo string
-	if (v & 1) > 0 {
-		weekinfo = "星期一, "
-	}
-	if (v & 2) > 0 {
-		weekinfo = weekinfo + "星期二, "
-	}
-	if (v & 4) > 0 {
-		weekinfo = weekinfo + "星期三, "
-	}
-	if (v & 8) > 0 {
-		weekinfo = weekinfo + "星期四, "
-	}
-	if (v & 16) > 0 {
-		weekinfo = weekinfo + "星期五, "
-	}
-	if (v & 32) > 0 {
-		weekinfo = weekinfo + "星期六, "
-	}
-	if (v & 64) > 0 {
-		weekinfo = weekinfo + "星期日"
-	}
-	return weekinfo
 }
 
 // func buildWeekdays(weekdays []int64) uint32 {
