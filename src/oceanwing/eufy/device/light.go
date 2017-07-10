@@ -38,7 +38,7 @@ func (light *Light) HandleSubscribeMessage() {
 		for {
 			select {
 			case msg := <-light.SubMessage:
-				log.Infof("get new incoming message from device: %s", light.DevKEY)
+				log.Infof("get new incoming message with topic: %s, for device: %s", msg.Topic(), light.DevKEY)
 				light.unMarshalAllMessage(msg)
 			}
 		}
@@ -136,7 +136,7 @@ func (light *Light) unMarshalServerMsg(incomingPayload []byte) {
 		if synctime != nil {
 			log.Info("------时间信息：")
 			log.Infof("------年： %d", synctime.GetYear())
-			log.Infof("------月： %d", synctime.GetMonth())
+			log.Infof("------月： %d", synctime.GetMonth()+1)
 			log.Infof("------日： %d", synctime.GetDay())
 			log.Infof("------weekday: %d", synctime.GetWeekday())
 			log.Infof("------时： %d", synctime.GetHours())
@@ -214,11 +214,11 @@ func (light *Light) unMarshalAllMessage(msg MQTT.Message) {
 	if light.SubDeviceTopic == t {
 		// 设备心跳消息
 		log.Info("----- 这是一个来自设备的心跳消息----------")
-		light.unMarshalHeartBeatMsg(payload)
+		go light.unMarshalHeartBeatMsg(payload)
 	} else if light.SubServerTopic == t {
 		//服务器消息
 		log.Info("-------这是一个来自服务器的控制消息---------")
-		light.unMarshalServerMsg(payload)
+		go light.unMarshalServerMsg(payload)
 	}
 }
 
