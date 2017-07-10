@@ -68,3 +68,10 @@ func (s *MqttServerPoint) distributeMsg(message MQTT.Message) {
 		}
 	}
 }
+
+// HappyEnding oh yeah, finish testing.
+func HappyEnding() {
+	for _, dev := range servPointInstance.devices {
+		dev.LeaveModeTestResult()
+	}
+}

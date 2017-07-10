@@ -7,6 +7,7 @@ import (
 // EufyDevice 所有 eufy device 的行为接口
 type EufyDevice interface {
 	HandleSubscribeMessage()
+	LeaveModeTestResult()
 	GetSubDeviceTopic() string
 	GetSubServerTopic() string
 	GetProductCode() string
@@ -41,4 +42,8 @@ func (b *baseDevice) GetProductKey() string {
 
 func (b *baseDevice) SendPayload(msg MQTT.Message) {
 	b.SubMessage <- msg
+}
+
+func (b *baseDevice) LeaveModeTestResult() {
+
 }
