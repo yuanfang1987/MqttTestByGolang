@@ -51,6 +51,8 @@ func NewLightWithColor(prodCode, devKey, devid string) EufyDevice {
 	o.stopCtrlFunc = make(chan struct{})
 	o.rgbMap = make(map[string]*rgbInfo)
 	log.Infof("Create a color Light, product code: %s, device key: %s, device id: %s", prodCode, devKey, devid)
+	// 读取RGB配色信息
+	getRGBData()
 	return o
 }
 
