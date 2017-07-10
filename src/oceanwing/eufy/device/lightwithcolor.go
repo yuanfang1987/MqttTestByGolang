@@ -14,14 +14,21 @@ import (
 )
 
 var (
-	rgb []map[string]interface{}
+	rgb               []map[string]interface{}
+	rgbNum            int
+	colorModCaseIndex = 0
 )
 
 // LightWithColor 是对产品 T1013、T1604 的描述
 type LightWithColor struct {
 	baseDevice
-	stopCtrlFunc chan struct{}
-	rgbMap       map[string]*rgbInfo
+	stopCtrlFunc    chan struct{}
+	rgbMap          map[string]*rgbInfo
+	lum             uint32
+	colorTemp       uint32
+	bright          uint32
+	onOffStatus     uint32
+	streamModeSpeed int
 }
 
 // RGB 配色信息
@@ -99,7 +106,7 @@ func (light *LightWithColor) setDataForLight(mode int) *light1013.ServerMessage 
 		lightdata.StreamLight = light.buildStreamLightData()
 	case 4:
 		// 开关灯
-		lightdata.OnoffStatus = light.setLightOnOffStatus(true)
+		lightdata.OnoffStatus = light.setLightOnOffStatus()
 	}
 
 	setlightdata.SetLightData = lightdata
@@ -116,6 +123,10 @@ func (light *LightWithColor) buildWhiteLightData() *lightEvent.LampLightLevelCtl
 	brightness := uint32(commontool.RandInt64(1, 101))
 	color := uint32(commontool.RandInt64(1, 101))
 
+	// 储存当前数据，用于后续心跳判断
+	light.lum = brightness
+	light.colorTemp = color
+
 	return &lightEvent.LampLightLevelCtlMessage{
 		Lum:       proto.Uint32(brightness),
 		ColorTemp: proto.Uint32(color),
@@ -124,10 +135,40 @@ func (light *LightWithColor) buildWhiteLightData() *lightEvent.LampLightLevelCtl
 
 // 构造彩光模式的数据
 func (light *LightWithColor) buildColorLightData() *lightEvent.LampLightRgbCtlMessage {
-	red := uint32(commontool.RandInt64(0, 255))
-	green := uint32(commontool.RandInt64(0, 255))
-	blue := uint32(commontool.RandInt64(0, 255))
+	var red, green, blue uint32
 	brightness := uint32(commontool.RandInt64(10, 100))
+	// 储存当前数据，用于后续心跳判断
+	light.bright = brightness
+
+	colorData := rgb[colorModCaseIndex]
+
+	colorModCaseIndex++
+	if colorModCaseIndex >= rgbNum {
+		colorModCaseIndex = 0
+	}
+
+	name := colorData["RGBName"]
+	v := colorData["rgbConfig"]
+	if expRGB, ok := v.(*rgbInfo); ok {
+		red = expRGB.red
+		green = expRGB.green
+		blue = expRGB.blue
+		// 储存当前数据，用于后续心跳判断
+		light.rgbMap["colorModRGB"] = expRGB
+	} else {
+		red = uint32(commontool.RandInt64(0, 255))
+		green = uint32(commontool.RandInt64(0, 255))
+		blue = uint32(commontool.RandInt64(0, 255))
+		// 储存当前数据，用于后续心跳判断
+		rrggbb := &rgbInfo{
+			red:   red,
+			green: green,
+			blue:  blue,
+		}
+		light.rgbMap["colorModRGB"] = rrggbb
+	}
+
+	log.Infof("设置彩光模式, 彩光名称: %s, 红: %d, 绿: %d, 蓝: %d, 亮度: %d", name, red, green, blue, brightness)
 
 	return &lightEvent.LampLightRgbCtlMessage{
 		Red:   proto.Uint32(red),
@@ -140,12 +181,16 @@ func (light *LightWithColor) buildColorLightData() *lightEvent.LampLightRgbCtlMe
 // 构造流光模式的数据
 func (light *LightWithColor) buildStreamLightData() *light1013.StreamLight {
 	brightness := int32(commontool.RandInt64(20, 100))
+	// 储存当前数据，用于后续心跳判断
+	light.bright = uint32(brightness)
+	// 速度， 固定 1 秒， 不好吧
+	light.streamModeSpeed = 1
 
 	points := &light1013.ColorPointMessage{
-		PointA: light.buildRGBData(),
-		PointB: light.buildRGBData(),
-		PointC: light.buildRGBData(),
-		PointD: light.buildRGBData(),
+		PointA: light.buildRGBData("A"),
+		PointB: light.buildRGBData("B"),
+		PointC: light.buildRGBData("C"),
+		PointD: light.buildRGBData("D"),
 	}
 
 	stream := &light1013.StreamLight{}
@@ -157,11 +202,32 @@ func (light *LightWithColor) buildStreamLightData() *light1013.StreamLight {
 	return stream
 }
 
-// RGB 数值, 暂时随机产生
-func (light *LightWithColor) buildRGBData() *light1013.RGBMessage {
-	red := int32(commontool.RandInt64(0, 255))
-	green := int32(commontool.RandInt64(0, 255))
-	blue := int32(commontool.RandInt64(0, 255))
+// RGB 数值
+func (light *LightWithColor) buildRGBData(p string) *light1013.RGBMessage {
+	var red, green, blue int32
+	var seed int64
+	switch p {
+	case "A":
+		seed = commontool.RandInt64(0, 12)
+	case "B":
+		seed = commontool.RandInt64(12, 24)
+	case "C":
+		seed = commontool.RandInt64(24, 36)
+	case "D":
+		seed = commontool.RandInt64(36, 51)
+	}
+
+	if int(seed) < rgbNum {
+		rrggbb := rgb[seed]
+		rgbcon := rrggbb["rgbConfig"]
+		if rgbdata, ok := rgbcon.(*rgbInfo); ok {
+			red = int32(rgbdata.red)
+			green = int32(rgbdata.green)
+			blue = int32(rgbdata.blue)
+			// 储存当前数据，用于后续心跳判断
+			light.rgbMap[p] = rgbdata
+		}
+	}
 
 	return &light1013.RGBMessage{
 		Red:   proto.Int32(red),
@@ -171,10 +237,12 @@ func (light *LightWithColor) buildRGBData() *light1013.RGBMessage {
 }
 
 // 开关灯
-func (light *LightWithColor) setLightOnOffStatus(b bool) *light1013.LIGHT_ONOFF_STATUS {
-	if b {
+func (light *LightWithColor) setLightOnOffStatus() *light1013.LIGHT_ONOFF_STATUS {
+	if light.onOffStatus != 1 {
+		log.Info("开灯")
 		return light1013.LIGHT_ONOFF_STATUS_ON.Enum()
 	}
+	log.Info("关灯")
 	return light1013.LIGHT_ONOFF_STATUS_OFF.Enum()
 }
 
@@ -425,4 +493,6 @@ func getRGBData() {
 		rgbmap["rgbConfig"] = newRgb
 		rgb = append(rgb, rgbmap)
 	}
+
+	rgbNum = len(rgb)
 }
