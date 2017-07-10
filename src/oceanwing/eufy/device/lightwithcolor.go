@@ -4,6 +4,8 @@ import (
 	"math"
 	"math/rand"
 	"oceanwing/commontool"
+	"strconv"
+	"strings"
 
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
@@ -11,10 +13,22 @@ import (
 	light1013 "oceanwing/eufy/protobuf.lib/light/t1013"
 )
 
+var (
+	rgb []map[string]interface{}
+)
+
 // LightWithColor 是对产品 T1013、T1604 的描述
 type LightWithColor struct {
 	baseDevice
 	stopCtrlFunc chan struct{}
+	rgbMap       map[string]*rgbInfo
+}
+
+// RGB 配色信息
+type rgbInfo struct {
+	red   uint32
+	green uint32
+	blue  uint32
 }
 
 // NewLightWithColor create a new color light instance.
@@ -28,6 +42,7 @@ func NewLightWithColor(prodCode, devKey, devid string) EufyDevice {
 	o.DeviceMsg = make(chan []byte)
 	o.ServerMsg = make(chan []byte)
 	o.stopCtrlFunc = make(chan struct{})
+	o.rgbMap = make(map[string]*rgbInfo)
 	log.Infof("Create a color Light, product code: %s, device key: %s, device id: %s", prodCode, devKey, devid)
 	return o
 }
@@ -62,6 +77,7 @@ func (light *LightWithColor) BuildProtoBufMessage() []byte {
 	return data
 }
 
+// 控制灯光变化
 func (light *LightWithColor) setDataForLight(mode int) *light1013.ServerMessage {
 	setlightdata := &light1013.ServerMessage_SetLightData_{}
 
@@ -161,58 +177,6 @@ func (light *LightWithColor) setLightOnOffStatus(b bool) *light1013.LIGHT_ONOFF_
 	}
 	return light1013.LIGHT_ONOFF_STATUS_OFF.Enum()
 }
-
-// 白色模式， 和 T1012 一样的
-// func (light *LightWithColor) setWhiteLightMode() *light1013.ServerMessage {
-// 	whiteLight := &light1013.ServerMessage_SetLightData_{}
-// 	lightData := &light1013.ServerMessage_SetLightData{}
-// 	lightData.Type = light1013.CmdType_REMOTE_SET_LIGHTING_PARA.Enum()
-// 	lightData.Mode = light1013.LIGHT_DEV_MODE_WHITE_LIGHT_MODE.Enum()
-
-// 	white := &lightEvent.LampLightLevelCtlMessage{}
-// 	brightness := uint32(commontool.RandInt64(1, 101))
-// 	color := uint32(commontool.RandInt64(1, 101))
-// 	white.Lum = proto.Uint32(brightness)
-// 	white.ColorTemp = proto.Uint32(color)
-
-// 	lightData.White = white
-
-// 	whiteLight.SetLightData = lightData
-
-// 	serMsg := &light1013.ServerMessage{
-// 		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
-// 		RemoteMessage: whiteLight,
-// 	}
-
-// 	return serMsg
-// }
-
-// 彩光模式
-// func (light *LightWithColor) setColorLightMode() *light1013.ServerMessage {
-// 	red := uint32(commontool.RandInt64(0, 255))
-// 	green := uint32(commontool.RandInt64(0, 255))
-// 	blue := uint32(commontool.RandInt64(0, 255))
-
-// 	colorlight := &light1013.ServerMessage_SetLightData_{
-// 		SetLightData: &light1013.ServerMessage_SetLightData{
-// 			Type: light1013.CmdType_REMOTE_SET_LIGHTING_PARA.Enum(),
-// 			Mode: light1013.LIGHT_DEV_MODE_COLOR_LIGHT_MODE.Enum(),
-// 			Rgb: &lightEvent.LampLightRgbCtlMessage{
-// 				Red:   proto.Uint32(red),
-// 				Green: proto.Uint32(green),
-// 				Blue:  proto.Uint32(blue),
-// 				White: proto.Uint32(80),
-// 			},
-// 		},
-// 	}
-
-// 	serMsg := &light1013.ServerMessage{
-// 		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
-// 		RemoteMessage: colorlight,
-// 	}
-// 	log.Infof("设置彩灯, Red: %d, Green: %d, Blue: %d", red, green, blue)
-// 	return serMsg
-// }
 
 /*--------------------------------------------------------------------------------------------------------------------------------------*/
 
@@ -428,4 +392,37 @@ func (light *LightWithColor) unMarshalServerMessage(payload []byte) {
 
 	}
 
+}
+
+func getRGBData() {
+	if rgb != nil || len(rgb) > 0 {
+		log.Warn("rgb slice has been initizalize, don't do this again.")
+		return
+	}
+
+	content, err := commontool.ReadFileContent("rgb.txt")
+	if err != nil {
+		log.Errorf("get rgb test data fail: %s", err)
+		return
+	}
+
+	for _, line := range content {
+		arrString := strings.Split(line, ",")
+
+		r, _ := strconv.Atoi(arrString[0])
+		g, _ := strconv.Atoi(arrString[1])
+		b, _ := strconv.Atoi(arrString[2])
+		rgnName := arrString[3]
+
+		newRgb := &rgbInfo{
+			red:   uint32(r),
+			green: uint32(g),
+			blue:  uint32(b),
+		}
+
+		rgbmap := make(map[string]interface{})
+		rgbmap["RGBName"] = rgnName
+		rgbmap["rgbConfig"] = newRgb
+		rgb = append(rgb, rgbmap)
+	}
 }
