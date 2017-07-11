@@ -20,8 +20,6 @@ type Light struct {
 	stopCtrlFunc     chan struct{}
 	onOffStatChan    chan string
 	runMod           int
-	resultMap        map[string]string
-	occurSlice       []map[string]string
 	awayModTesting   bool
 }
 
@@ -90,7 +88,7 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 	stat := devBaseInfo.GetOnoffStatus().String()
 	log.Infof("灯泡 %s (%s) 状态: %s", light.DevKEY, light.ProdCode, stat)
 
-	// 把当前心跳的 status 存入 channel, 最多可以同时存 2 个
+	// 把当前心跳的 status 存入 channel, 最多可以存 2 个
 	light.onOffStatChan <- stat
 
 	if modeName == "AWAY_MODE" {
@@ -98,8 +96,8 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 		light.awayModTesting = true
 
 		// 记录由 normal mode 转为 leave mode 的时间, 如果字典中尚未有记录，则记录之
-		if _, ok := light.resultMap["leave_Mode_Up"]; !ok {
-			light.resultMap["leave_Mode_Up"] = commontool.GetCurrentTime()
+		if _, ok := light.resultMap[LeaveModeUp]; !ok {
+			light.resultMap[LeaveModeUp] = commontool.GetCurrentTime()
 			log.Infof("灯泡 %s (%s) 已启动离家模式...", light.DevKEY, light.ProdCode)
 		}
 
@@ -112,9 +110,9 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 		}
 
 		// 记录开启离家模式之前的那个状态
-		if _, ok := light.resultMap["status_before_leave_mode"]; !ok {
+		if _, ok := light.resultMap[StatusBeforeLeaveMode]; !ok {
 			if prev != "" {
-				light.resultMap["status_before_leave_mode"] = prev
+				light.resultMap[StatusBeforeLeaveMode] = prev
 				log.Infof("灯泡 %s (%s) 启动离家模式之前的状态是: %s", light.DevKEY, light.ProdCode, prev)
 			}
 		}
@@ -122,8 +120,8 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 		// 如果两次的状态不同，则说明状态发生了变化，随机开关灯被触发, 把操作类型和时间记录下来
 		if prev != current {
 			leaveModeOccur := make(map[string]string)
-			leaveModeOccur["occur_time"] = commontool.GetCurrentTime()
-			leaveModeOccur["occur_type"] = current
+			leaveModeOccur[OccurTime] = commontool.GetCurrentTime()
+			leaveModeOccur[OccurType] = current
 			light.occurSlice = append(light.occurSlice, leaveModeOccur)
 			log.Infof("灯泡 %s (%s) 随机开关为被触发, 本次是: %s", light.DevKEY, light.ProdCode, current)
 		}
@@ -135,13 +133,13 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 
 	} else if modeName == "NORMAL_MODE" && light.awayModTesting {
 		// 记录离家模式的失效时间
-		if _, ok := light.resultMap["leave_Mode_Down"]; !ok {
-			light.resultMap["leave_Mode_Down"] = commontool.GetCurrentTime()
+		if _, ok := light.resultMap[LeaveModeDown]; !ok {
+			light.resultMap[LeaveModeDown] = commontool.GetCurrentTime()
 		}
 
-		// 记录恢复正常模式后在状态
-		if _, ok := light.resultMap["status_resume_to_normal"]; !ok {
-			light.resultMap["status_resume_to_normal"] = stat
+		// 记录恢复正常模式后的状态
+		if _, ok := light.resultMap[StatusResumeToNormal]; !ok {
+			light.resultMap[StatusResumeToNormal] = stat
 		}
 
 		light.awayModTesting = false
@@ -226,7 +224,7 @@ func (light *Light) unMarshalServerMsg(incomingPayload []byte) {
 					log.Infof("------闹钟，时：%d", alarmMsg.GetHours())
 					log.Infof("------闹钟，分: %d", alarmMsg.GetMinutes())
 					log.Infof("------闹钟，是否重复: %t", alarmMsg.GetRepetiton())
-					weekinfo := convertToWeekDay(alarmMsg.GetWeekInfo())
+					weekinfo := commontool.ConvertToWeekDay(alarmMsg.GetWeekInfo())
 					log.Infof("------闹钟，WeekInfo：%s", weekinfo)
 				}
 
@@ -275,14 +273,14 @@ func (light *Light) unMarshalServerMsg(incomingPayload []byte) {
 			log.Infof("------离家模式, 开始时间  %d:%d", starthour, startminute)
 			log.Infof("------离家模式, 结束时间  %d:%d", finishhour, finishminute)
 			log.Infof("------离家模式, 是否重复: %t", leaveMsg.GetRepetiton())
-			log.Infof("------离家模式, WeekInfo: %s", convertToWeekDay(leaveMsg.GetWeekInfo()))
+			log.Infof("------离家模式, WeekInfo: %s", commontool.ConvertToWeekDay(leaveMsg.GetWeekInfo()))
 			leaveHomeFlag := leaveMsg.GetLeaveHomeState()
 			log.Infof("------离家模式, 是否开启: %t", leaveHomeFlag)
 
 			// 如果服务器下发的 离家模式 为 true，则记下时间
 			if leaveHomeFlag {
-				light.resultMap["leave_mode_up_exp"] = strconv.Itoa(starthour) + ":" + strconv.Itoa(startminute)
-				light.resultMap["leave_mode_down_exp"] = strconv.Itoa(finishhour) + ":" + strconv.Itoa(finishminute)
+				light.resultMap[LeaveModeUpExp] = strconv.Itoa(starthour) + ":" + strconv.Itoa(startminute)
+				light.resultMap[LeaveModeDownExp] = strconv.Itoa(finishhour) + ":" + strconv.Itoa(finishminute)
 			}
 
 		}
@@ -296,90 +294,11 @@ func (light *Light) unMarshalAllMessage(msg MQTT.Message) {
 
 	if light.SubDeviceTopic == t {
 		// 设备心跳消息
-		log.Info("----- 这是一个来自设备的心跳消息----------")
+		log.Info("----- 这是一个来自灯泡设备的心跳消息----------")
 		light.unMarshalHeartBeatMsg(payload)
 	} else if light.SubServerTopic == t {
 		//服务器消息
 		log.Info("-------这是一个来自服务器的控制消息---------")
 		light.unMarshalServerMsg(payload)
 	}
-}
-
-// LeaveModeTestResult 生成汇总报告, 实现 EufyDevice 接口
-func (light *Light) LeaveModeTestResult() {
-	log.Infof("====================== %s (%s) 离家模式测试结果 ======================", light.DevKEY, light.ProdCode)
-
-	// 预计开始时间
-	if expStart, ok := light.resultMap["leave_mode_up_exp"]; ok {
-		log.Infof("预计开始时间: %s", expStart)
-	} else {
-		log.Error("无法获取到预计开始时间")
-	}
-
-	// 实际开始时间
-	if startTime, ok := light.resultMap["leave_Mode_Up"]; ok {
-		log.Infof("实际开始时间: %s", startTime)
-	} else {
-		log.Error("没有获取到实际开始时间")
-	}
-
-	// 预计结束时间
-	if expEnd, ok := light.resultMap["leave_mode_down_exp"]; ok {
-		log.Infof("预计结束时间: %s", expEnd)
-	} else {
-		log.Error("无法获取预计结束时间")
-	}
-
-	// 实际结束时间
-	if endTime, ok := light.resultMap["leave_Mode_Down"]; ok {
-		log.Infof("实际结束时间: %s", endTime)
-	} else {
-		log.Error("没有获取到实际结束时间")
-	}
-
-	// 开始前的状态
-	if statusBefore, ok := light.resultMap["status_before_leave_mode"]; ok {
-		log.Infof("开始前状态：%s", statusBefore)
-	} else {
-		log.Error("无法获取开始前的状态")
-	}
-
-	// 结束后的状态
-	if statusAfter, ok := light.resultMap["status_resume_to_normal"]; ok {
-		log.Infof("结束后状态: %s", statusAfter)
-	} else {
-		log.Error("无法获取结束后状态")
-	}
-
-	// 随机触发开关灯情况
-	for i, v := range light.occurSlice {
-		log.Infof("第 %d 次发生, 时间: %s, 类型: %s", i+1, v["occur_time"], v["occur_type"])
-	}
-
-}
-
-func convertToWeekDay(v uint32) string {
-	var weekinfo string
-	if (v & 1) > 0 {
-		weekinfo = "星期一, "
-	}
-	if (v & 2) > 0 {
-		weekinfo = weekinfo + "星期二, "
-	}
-	if (v & 4) > 0 {
-		weekinfo = weekinfo + "星期三, "
-	}
-	if (v & 8) > 0 {
-		weekinfo = weekinfo + "星期四, "
-	}
-	if (v & 16) > 0 {
-		weekinfo = weekinfo + "星期五, "
-	}
-	if (v & 32) > 0 {
-		weekinfo = weekinfo + "星期六, "
-	}
-	if (v & 64) > 0 {
-		weekinfo = weekinfo + "星期日"
-	}
-	return weekinfo
 }

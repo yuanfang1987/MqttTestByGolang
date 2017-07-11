@@ -110,3 +110,30 @@ func InitLogInstance(level string) {
 	logger, _ := log.LoggerFromConfigAsBytes([]byte(logConfig))
 	log.ReplaceLogger(logger)
 }
+
+// ConvertToWeekDay hh.
+func ConvertToWeekDay(v uint32) string {
+	var weekinfo string
+	if (v & 1) > 0 {
+		weekinfo = "星期一, "
+	}
+	if (v & 2) > 0 {
+		weekinfo = weekinfo + "星期二, "
+	}
+	if (v & 4) > 0 {
+		weekinfo = weekinfo + "星期三, "
+	}
+	if (v & 8) > 0 {
+		weekinfo = weekinfo + "星期四, "
+	}
+	if (v & 16) > 0 {
+		weekinfo = weekinfo + "星期五, "
+	}
+	if (v & 32) > 0 {
+		weekinfo = weekinfo + "星期六, "
+	}
+	if (v & 64) > 0 {
+		weekinfo = weekinfo + "星期日"
+	}
+	return weekinfo
+}
