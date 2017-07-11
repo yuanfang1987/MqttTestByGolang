@@ -3,7 +3,6 @@ package device
 import (
 	"oceanwing/commontool"
 	"strconv"
-	"time"
 
 	log "github.com/cihub/seelog"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
@@ -14,15 +13,16 @@ import (
 // Light 灯泡类产品的一个 struct 描述，包括 T1011,T1012,T1013
 type Light struct {
 	baseDevice
-	// mode             lightT1012.DeviceMessage_ReportDevBaseInfo_LIGHT_DEV_MODE
-	status           string
+	// status           string
 	lum              uint32
 	colorTemp        uint32
 	isCtrlFunRunning bool
 	stopCtrlFunc     chan struct{}
+	onOffStatChan    chan string
 	runMod           int
 	resultMap        map[string]string
 	occurSlice       []map[string]string
+	awayModTesting   bool
 }
 
 // NewLight 新建一个 Light 实例
@@ -35,6 +35,7 @@ func NewLight(prodCode, devKey string) EufyDevice {
 	o.SubMessage = make(chan MQTT.Message)
 	o.stopCtrlFunc = make(chan struct{})
 	o.resultMap = make(map[string]string)
+	o.onOffStatChan = make(chan string, 2)
 	log.Debugf("灯泡 %s (%s) 订阅设备主题: %s, 订阅服务器主题: %s", o.DevKEY, o.ProdCode, o.SubDeviceTopic, o.SubServerTopic)
 	return o
 }
@@ -89,34 +90,66 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 	stat := devBaseInfo.GetOnoffStatus().String()
 	log.Infof("灯泡 %s (%s) 状态: %s", light.DevKEY, light.ProdCode, stat)
 
-	// 当还没有开始离家模式的时候，要记录最近一次的心跳的开关灯状态
-	if light.runMod != 1 {
-		light.status = stat
+	// 把当前心跳的 status 存入 channel, 最多可以同时存 2 个
+	light.onOffStatChan <- stat
+
+	if modeName == "AWAY_MODE" {
+		// 标记一下已经处于离家模式测试中
+		light.awayModTesting = true
+
+		// 记录由 normal mode 转为 leave mode 的时间, 如果字典中尚未有记录，则记录之
+		if _, ok := light.resultMap["leave_Mode_Up"]; !ok {
+			light.resultMap["leave_Mode_Up"] = commontool.GetCurrentTime()
+			log.Infof("灯泡 %s (%s) 已启动离家模式...", light.DevKEY, light.ProdCode)
+		}
+
+		var prev, current string
+
+		// 取出上次心跳和本次心跳的开关状态
+		if len(light.onOffStatChan) == 2 {
+			prev = <-light.onOffStatChan
+			current = <-light.onOffStatChan
+		}
+
+		// 记录开启离家模式之前的那个状态
+		if _, ok := light.resultMap["status_before_leave_mode"]; !ok {
+			if prev != "" {
+				light.resultMap["status_before_leave_mode"] = prev
+				log.Infof("灯泡 %s (%s) 启动离家模式之前的状态是: %s", light.DevKEY, light.ProdCode, prev)
+			}
+		}
+
+		// 如果两次的状态不同，则说明状态发生了变化，随机开关灯被触发, 把操作类型和时间记录下来
+		if prev != current {
+			leaveModeOccur := make(map[string]string)
+			leaveModeOccur["occur_time"] = commontool.GetCurrentTime()
+			leaveModeOccur["occur_type"] = current
+			light.occurSlice = append(light.occurSlice, leaveModeOccur)
+			log.Infof("灯泡 %s (%s) 随机开关为被触发, 本次是: %s", light.DevKEY, light.ProdCode, current)
+		}
+
+		// 把本次心跳的状态重新存入 channel 中，不然 channel 被掏空了，下次就没法一起取出两个来比较了
+		if len(light.onOffStatChan) < 2 {
+			light.onOffStatChan <- current
+		}
+
+	} else if modeName == "NORMAL_MODE" && light.awayModTesting {
+		// 记录离家模式的失效时间
+		if _, ok := light.resultMap["leave_Mode_Down"]; !ok {
+			light.resultMap["leave_Mode_Down"] = commontool.GetCurrentTime()
+		}
+
+		// 记录恢复正常模式后在状态
+		if _, ok := light.resultMap["status_resume_to_normal"]; !ok {
+			light.resultMap["status_resume_to_normal"] = stat
+		}
+
+		light.awayModTesting = false
 	}
 
-	if light.runMod == 1 {
-		// 记录由 normal mode 转为 leave mode 的时间
-		if modeName == "AWAY_MODE" {
-			// 如果字典中尚未有记录，则记录之
-			if _, ok := light.resultMap["leave_Mode_Up"]; !ok {
-				light.resultMap["leave_Mode_Up"] = commontool.GetCurrentTime()
-			}
-			// 如果随机触发了开关灯，则把操作类型和时间记录下来
-			if light.status != stat {
-				leaveModeOccur := make(map[string]string)
-				leaveModeOccur["occur_time"] = commontool.GetCurrentTime()
-				leaveModeOccur["occur_type"] = stat
-				light.occurSlice = append(light.occurSlice, leaveModeOccur)
-				light.status = stat
-			}
-		}
-	} else if light.runMod == 2 {
-		// 记录离家模式的失效时间
-		if modeName == "NORMAL_MODE" {
-			if _, ok := light.resultMap["leave_Mode_Down"]; !ok {
-				light.resultMap["leave_Mode_Down"] = commontool.GetCurrentTime()
-			}
-		}
+	// 如果 channel 中缓存已满，必须取出一个, 否则下次心跳再往里面发数据的时候程序会死掉
+	if len(light.onOffStatChan) == 2 {
+		<-light.onOffStatChan
 	}
 
 	ligthCTRL := devBaseInfo.GetLightCtl()
@@ -192,7 +225,6 @@ func (light *Light) unMarshalServerMsg(incomingPayload []byte) {
 				if alarmMsg != nil {
 					log.Infof("------闹钟，时：%d", alarmMsg.GetHours())
 					log.Infof("------闹钟，分: %d", alarmMsg.GetMinutes())
-					// log.Infof("------闹钟，秒：%d", alarmMsg.get) 旧版protobuf定义文件没有秒，新版有
 					log.Infof("------闹钟，是否重复: %t", alarmMsg.GetRepetiton())
 					weekinfo := convertToWeekDay(alarmMsg.GetWeekInfo())
 					log.Infof("------闹钟，WeekInfo：%s", weekinfo)
@@ -247,15 +279,10 @@ func (light *Light) unMarshalServerMsg(incomingPayload []byte) {
 			leaveHomeFlag := leaveMsg.GetLeaveHomeState()
 			log.Infof("------离家模式, 是否开启: %t", leaveHomeFlag)
 
-			// 如果服务器下发的 离家模式 为 true，且控制函数没有运行，则跑之.
-			if leaveHomeFlag && (!light.isCtrlFunRunning) {
-				light.controlAwayModStatus(starthour, startminute, finishhour, finishminute)
+			// 如果服务器下发的 离家模式 为 true，则记下时间
+			if leaveHomeFlag {
 				light.resultMap["leave_mode_up_exp"] = strconv.Itoa(starthour) + ":" + strconv.Itoa(startminute)
 				light.resultMap["leave_mode_down_exp"] = strconv.Itoa(finishhour) + ":" + strconv.Itoa(finishminute)
-			}
-			// 如果服务器下发的 离家模式 为 false，且控制函数已运行，则发信号干掉之.
-			if (!leaveHomeFlag) && light.isCtrlFunRunning {
-				light.stopCtrlFunc <- struct{}{}
 			}
 
 		}
@@ -276,35 +303,6 @@ func (light *Light) unMarshalAllMessage(msg MQTT.Message) {
 		log.Info("-------这是一个来自服务器的控制消息---------")
 		light.unMarshalServerMsg(payload)
 	}
-}
-
-func (light *Light) controlAwayModStatus(startHour, startMinute, endHour, endMinute int) {
-	go func() {
-		light.isCtrlFunRunning = true
-		interval := time.NewTicker(time.Second * 1).C
-		for {
-			select {
-			case <-interval:
-				nowTime := time.Now()
-				// 当前时间与开始时间作对比， 如何相等， 则标识 RunMod 为离家模式
-				if nowTime.Hour() == startHour && nowTime.Minute() == startMinute && nowTime.Second() == 0 {
-					light.runMod = 1
-					log.Infof("灯泡 %s (%s) 开启离家模式", light.DevKEY, light.ProdCode)
-					// result.WriteToResultFile(light.ProdCode, light.DevKEY, "NA", "开启离家模式", "NA")
-				}
-				// 当前时间与结束时间作对比， 如何相等， 则标识 RunMod 为正常模式
-				if nowTime.Hour() == endHour && nowTime.Minute() == endMinute && nowTime.Second() == 0 {
-					light.runMod = 2
-					log.Infof("灯泡 %s (%s) 恢复正常模式", light.DevKEY, light.ProdCode)
-					// result.WriteToResultFile(light.ProdCode, light.DevKEY, "NA", "恢复正常模式", "NA")
-				}
-			case <-light.stopCtrlFunc:
-				light.isCtrlFunRunning = false
-				//干掉这个函数
-				return
-			}
-		}
-	}()
 }
 
 // LeaveModeTestResult 生成汇总报告, 实现 EufyDevice 接口
@@ -337,6 +335,20 @@ func (light *Light) LeaveModeTestResult() {
 		log.Infof("实际结束时间: %s", endTime)
 	} else {
 		log.Error("没有获取到实际结束时间")
+	}
+
+	// 开始前的状态
+	if statusBefore, ok := light.resultMap["status_before_leave_mode"]; ok {
+		log.Infof("开始前状态：%s", statusBefore)
+	} else {
+		log.Error("无法获取开始前的状态")
+	}
+
+	// 结束后的状态
+	if statusAfter, ok := light.resultMap["status_resume_to_normal"]; ok {
+		log.Infof("结束后状态: %s", statusAfter)
+	} else {
+		log.Error("无法获取结束后状态")
 	}
 
 	// 随机触发开关灯情况

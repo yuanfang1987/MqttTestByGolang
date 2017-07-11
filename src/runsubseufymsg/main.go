@@ -52,7 +52,7 @@ func main() {
 		for {
 			select {
 			case <-heartBeatInterval:
-				log.Infof("%d seconds pass...", interval)
+				log.Info("look! a bird! so lovely...")
 			}
 		}
 	}()
