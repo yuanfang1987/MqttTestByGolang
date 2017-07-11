@@ -327,7 +327,7 @@ func (light *Light) LeaveModeTestResult() {
 
 	// 预计结束时间
 	if expEnd, ok := light.resultMap["leave_mode_down_exp"]; ok {
-		log.Infof("预计结束时间", expEnd)
+		log.Infof("预计结束时间: %s", expEnd)
 	} else {
 		log.Error("无法获取预计结束时间")
 	}
@@ -341,7 +341,7 @@ func (light *Light) LeaveModeTestResult() {
 
 	// 随机触发开关灯情况
 	for i, v := range light.occurSlice {
-		log.Infof("第 %d 次发生, 时间: %s, 类型: %s", i, v["occur_time"], v["occur_type"])
+		log.Infof("第 %d 次发生, 时间: %s, 类型: %s", i+1, v["occur_time"], v["occur_type"])
 	}
 
 }
