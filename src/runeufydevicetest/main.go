@@ -44,8 +44,13 @@ func main() {
 	}
 
 	// 新建csv文件用于存放测试结果
-	result.NewResultFile("./EufyDeviceFuntionalTest.csv")
+	// result.NewResultFile("./EufyDeviceFuntionalTest.csv")
 	//defer result.CloseResultFile()
+
+	// 新建 Excel 文件存放测试结果
+	result.InitExcelFile()
+	columNames := []string{"Product Code", "Device Key", "TestCase Name", "Test Time", "Test Result", "Error Message"}
+	result.WriteToExcel(columNames)
 
 	go func() {
 		// create a new eufyServer instance.
@@ -78,5 +83,7 @@ func main() {
 	signal.Notify(channelSignal, os.Interrupt)
 	signal.Notify(channelSignal, syscall.SIGTERM)
 	<-channelSignal
-	serverpoint.HappyEnding()
+	// serverpoint.HappyEnding()
+	log.Info("测试结束")
+	result.SaveExcelFile()
 }

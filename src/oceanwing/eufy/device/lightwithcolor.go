@@ -1,11 +1,15 @@
 package device
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"oceanwing/commontool"
+	"oceanwing/eufy/result"
 	"strconv"
 	"strings"
+
+	"time"
 
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
@@ -13,10 +17,16 @@ import (
 	light1013 "oceanwing/eufy/protobuf.lib/light/t1013"
 )
 
+const (
+	colorModRGB = "colorModRGB"
+)
+
 var (
-	rgb               []map[string]interface{}
-	rgbNum            int
-	colorModCaseIndex = 0
+	rgb                         []map[string]interface{}
+	rgbNum                      int
+	colorModCaseIndex           = 0
+	notPassAndwaitNextHeartBeat = 0
+	testMode                    = 0
 )
 
 // LightWithColor 是对产品 T1013、T1604 的描述
@@ -27,8 +37,10 @@ type LightWithColor struct {
 	lum             uint32
 	colorTemp       uint32
 	bright          uint32
-	onOffStatus     uint32
-	streamModeSpeed int
+	onOffStatus     light1013.LIGHT_ONOFF_STATUS
+	streamModeSpeed int32
+	mod             light1013.LIGHT_DEV_MODE
+	testcase        string
 }
 
 // RGB 配色信息
@@ -39,18 +51,19 @@ type rgbInfo struct {
 }
 
 // NewLightWithColor create a new color light instance.
-func NewLightWithColor(prodCode, devKey, devid string) EufyDevice {
+func NewLightWithColor(prodCode, devKey string) EufyDevice {
 	o := &LightWithColor{}
 	o.ProdCode = prodCode
 	o.DevKEY = devKey
-	o.DevID = devid
 	o.PubTopicl = "DEVICE/" + prodCode + "/" + devKey + "/SUB_MESSAGE"
 	o.SubTopicl = "DEVICE/" + prodCode + "/" + devKey + "/PUH_MESSAGE"
 	o.DeviceMsg = make(chan []byte)
 	o.ServerMsg = make(chan []byte)
 	o.stopCtrlFunc = make(chan struct{})
 	o.rgbMap = make(map[string]*rgbInfo)
-	log.Infof("Create a color Light, product code: %s, device key: %s, device id: %s", prodCode, devKey, devid)
+	o.onOffStatus = light1013.LIGHT_ONOFF_STATUS_ON // 测试前必须要确保灯是开的
+	log.Infof("Create a color Light, product code: %s, device key: %s", prodCode, devKey)
+	controlRunMode()
 	// 读取RGB配色信息
 	getRGBData()
 	return o
@@ -63,11 +76,11 @@ func (light *LightWithColor) HandleSubscribeMessage() {
 		for {
 			select {
 			case devmsg := <-light.DeviceMsg:
-				log.Infof("get new incoming message from device: %s", light.DevKEY)
-				light.unMarshalHeartBeatMessage(devmsg)
+				log.Infof("======设备上报消息: %s======", light.DevKEY)
+				go light.unMarshalHeartBeatMessage(devmsg)
 			case serMsg := <-light.ServerMsg:
-				log.Info("get new incoming message from server")
-				light.unMarshalServerMessage(serMsg)
+				log.Info("======服务器控制消息======")
+				go light.unMarshalServerMessage(serMsg)
 			}
 		}
 	}()
@@ -75,14 +88,20 @@ func (light *LightWithColor) HandleSubscribeMessage() {
 
 // BuildProtoBufMessage 实现 EufyDevice 接口
 func (light *LightWithColor) BuildProtoBufMessage() []byte {
+	if notPassAndwaitNextHeartBeat != 0 {
+		log.Warnf("上次心跳验证未通过，等待下次验证，当前已验证 %d 次", notPassAndwaitNextHeartBeat)
+		return nil
+	}
 	var serMsg *light1013.ServerMessage
-	serMsg = light.setDataForLight(1)
+	serMsg = light.setDataForLight(testMode)
 
 	data, err := proto.Marshal(serMsg)
 	if err != nil {
 		log.Errorf("build protobuf message fail: %s", err)
 		return nil
 	}
+	// 标记一下
+	light.IsCmdSent = true
 	return data
 }
 
@@ -96,19 +115,29 @@ func (light *LightWithColor) setDataForLight(mode int) *light1013.ServerMessage 
 	switch mode {
 	case 0:
 		// 白光模式
+		light.mod = light1013.LIGHT_DEV_MODE_WHITE_LIGHT_MODE
+		light.testcase = "白光模式"
 		lightdata.Mode = light1013.LIGHT_DEV_MODE_WHITE_LIGHT_MODE.Enum()
 		lightdata.White = light.buildWhiteLightData()
 	case 1:
 		// 彩光模式
+		light.mod = light1013.LIGHT_DEV_MODE_COLOR_LIGHT_MODE
+		light.testcase = "彩光模式"
 		lightdata.Mode = light1013.LIGHT_DEV_MODE_COLOR_LIGHT_MODE.Enum()
 		lightdata.Rgb = light.buildColorLightData()
 	case 2:
 		// 流光模式
+		light.mod = light1013.LIGHT_DEV_MODE_STREAMER_LIGHT_MODE
+		light.testcase = "流光模式"
 		lightdata.Mode = light1013.LIGHT_DEV_MODE_STREAMER_LIGHT_MODE.Enum()
 		lightdata.StreamLight = light.buildStreamLightData()
-	case 4:
+	case 3:
 		// 开关灯
+		light.testcase = "开关灯"
 		lightdata.OnoffStatus = light.setLightOnOffStatus()
+	default:
+		log.Warn("警告，没有指定测试模式")
+		return nil
 	}
 
 	setlightdata.SetLightData = lightdata
@@ -156,18 +185,18 @@ func (light *LightWithColor) buildColorLightData() *lightEvent.LampLightRgbCtlMe
 		green = expRGB.green
 		blue = expRGB.blue
 		// 储存当前数据，用于后续心跳判断
-		light.rgbMap["colorModRGB"] = expRGB
+		light.rgbMap[colorModRGB] = expRGB
 	} else {
 		red = uint32(commontool.RandInt64(0, 255))
 		green = uint32(commontool.RandInt64(0, 255))
 		blue = uint32(commontool.RandInt64(0, 255))
-		// 储存当前数据，用于后续心跳判断
 		rrggbb := &rgbInfo{
 			red:   red,
 			green: green,
 			blue:  blue,
 		}
-		light.rgbMap["colorModRGB"] = rrggbb
+		// 储存当前数据，用于后续心跳判断
+		light.rgbMap[colorModRGB] = rrggbb
 	}
 
 	log.Infof("设置彩光模式, 彩光名称: %s, 红: %d, 绿: %d, 蓝: %d, 亮度: %d", name, red, green, blue, brightness)
@@ -186,7 +215,8 @@ func (light *LightWithColor) buildStreamLightData() *light1013.StreamLight {
 	// 储存当前数据，用于后续心跳判断
 	light.bright = uint32(brightness)
 	// 速度， 固定 1 秒， 不好吧
-	light.streamModeSpeed = 1
+	speed := int32(commontool.RandInt64(1, 3))
+	light.streamModeSpeed = speed
 
 	points := &light1013.ColorPointMessage{
 		PointA: light.buildRGBData("A"),
@@ -197,7 +227,7 @@ func (light *LightWithColor) buildStreamLightData() *light1013.StreamLight {
 
 	stream := &light1013.StreamLight{}
 
-	stream.Time = proto.Int32(1)
+	stream.Time = proto.Int32(speed)
 	stream.BrightnessPercent = proto.Int32(brightness)
 	stream.Point = points
 
@@ -240,11 +270,13 @@ func (light *LightWithColor) buildRGBData(p string) *light1013.RGBMessage {
 
 // 开关灯
 func (light *LightWithColor) setLightOnOffStatus() *light1013.LIGHT_ONOFF_STATUS {
-	if light.onOffStatus != 1 {
+	if light.onOffStatus != light1013.LIGHT_ONOFF_STATUS_ON {
 		log.Info("开灯")
+		light.onOffStatus = light1013.LIGHT_ONOFF_STATUS_ON
 		return light1013.LIGHT_ONOFF_STATUS_ON.Enum()
 	}
 	log.Info("关灯")
+	light.onOffStatus = light1013.LIGHT_ONOFF_STATUS_OFF
 	return light1013.LIGHT_ONOFF_STATUS_OFF.Enum()
 }
 
@@ -255,14 +287,14 @@ func (light *LightWithColor) unMarshalHeartBeatMessage(payload []byte) {
 	devMsg := &light1013.DeviceMessage{}
 	err := proto.Unmarshal(payload, devMsg)
 	if err != nil {
-		log.Errorf("unmarshal device heart beat message fail: %s", err)
+		log.Errorf("解析 %s (%s) 心跳消息失败: %s", light.DevKEY, light.ProdCode, err)
 		return
 	}
 
 	// Non_ParamMsg
 	noneParaMsg := devMsg.GetNonParaMsg()
 	if noneParaMsg != nil {
-		log.Infof("无参数消息, 指令类型: %s", noneParaMsg.GetType().String())
+		log.Infof("彩灯 %s (%s) 无参数消息, 指令类型: %s", light.DevKEY, light.ProdCode, noneParaMsg.GetType().String())
 	}
 
 	// devBaseInfo
@@ -271,23 +303,44 @@ func (light *LightWithColor) unMarshalHeartBeatMessage(payload []byte) {
 		return
 	}
 
+	var errMsg []string
+
+	// CmdType
 	cmdtype := devBaseInfo.GetType()
+	if cmdtype != light1013.CmdType_DEV_REPORT_STATUS {
+		errMsg = append(errMsg, fmt.Sprintf("assert CmdType fail, exp: %s, act: %s", cmdtype.String(), light1013.CmdType_DEV_REPORT_STATUS.String()))
+	}
 	log.Infof("彩灯 %s (%s) CmdType: %s", light.DevKEY, light.ProdCode, cmdtype.String())
 
+	// Mode
 	mode := devBaseInfo.GetMode()
+	if light.mod != mode {
+		errMsg = append(errMsg, fmt.Sprintf("assert mode fail, exp: %s, act: %s", light.mod.String(), mode.String()))
+	}
 	log.Infof("彩灯 %s (%s) Mode: %s", light.DevKEY, light.ProdCode, mode.String())
 
+	// Status
 	status := devBaseInfo.GetOnoffStatus()
+	if light.onOffStatus != status {
+		errMsg = append(errMsg, fmt.Sprintf("assert onOff status fail, exp: %s, act: %s", light.onOffStatus.String(), status.String()))
+	}
 	log.Infof("彩灯 %s (%s) Mode: %s", light.DevKEY, light.ProdCode, status.String())
 
+	// leaveHomeState, 这个就不要判断了， 会有专门的测试
 	leaveHomeState := devBaseInfo.GetLeaveHomeState()
-	log.Infof("彩灯 %s (%s) leaveHomeState: %v", leaveHomeState)
+	log.Infof("彩灯 %s (%s) leaveHomeState: %t", light.DevKEY, light.ProdCode, leaveHomeState)
 
 	// devBaseInfo --> white
 	white := devBaseInfo.GetWhite()
 	if white != nil {
 		lum := white.GetLum()
 		colorTemp := white.GetColorTemp()
+		if light.lum != lum {
+			errMsg = append(errMsg, fmt.Sprintf("assert lum fail, exp: %d, act: %d", light.lum, lum))
+		}
+		if light.colorTemp != colorTemp {
+			errMsg = append(errMsg, fmt.Sprintf("assert colorTemp fail, exp: %d, act: %d", light.colorTemp, colorTemp))
+		}
 		log.Infof("彩灯 %s (%s) Lum: %d, ColorTemp: %d", light.DevKEY, light.ProdCode, lum, colorTemp)
 	}
 
@@ -298,6 +351,23 @@ func (light *LightWithColor) unMarshalHeartBeatMessage(payload []byte) {
 		green := rgb.GetGreen()
 		blue := rgb.GetBlue()
 		lum := rgb.GetWhite()
+
+		// 如果存在预期结果，则判断之
+		if expRGB, ok := light.rgbMap[colorModRGB]; ok {
+			if expRGB.red != red {
+				errMsg = append(errMsg, fmt.Sprintf("color mode, assert red, exp: %d, act: %d", expRGB.red, red))
+			}
+			if expRGB.green != green {
+				errMsg = append(errMsg, fmt.Sprintf("color mode, assert green, exp: %d, act: %d", expRGB.green, green))
+			}
+			if expRGB.blue != blue {
+				errMsg = append(errMsg, fmt.Sprintf("color mode, assert blue, exp: %d, act: %d", expRGB.blue, blue))
+			}
+			if light.bright != lum {
+				errMsg = append(errMsg, fmt.Sprintf("color mode, assert brightness, exp: %d, act: %d", light.bright, lum))
+			}
+		}
+
 		log.Infof("彩灯 %s (%s) Color light 模式, Red: %d, Green: %d, Blue: %d, Lum: %d", light.DevKEY, light.ProdCode, red, green, blue, lum)
 	}
 
@@ -306,6 +376,12 @@ func (light *LightWithColor) unMarshalHeartBeatMessage(payload []byte) {
 	if streamLight != nil {
 		ti := streamLight.GetTime()
 		brightnessper := streamLight.GetBrightnessPercent()
+		if light.streamModeSpeed != ti {
+			errMsg = append(errMsg, fmt.Sprintf("stream mode, assert time speed, exp: %d, act: %d", light.streamModeSpeed, ti))
+		}
+		if light.bright != uint32(brightnessper) {
+			errMsg = append(errMsg, fmt.Sprintf("stream mode, assert brightness, exp: %d, act: %d", light.bright, brightnessper))
+		}
 		log.Infof("彩灯 %s (%s) 流光模式, 流光速度(秒): %d, 亮度: %d", light.DevKEY, light.ProdCode, ti, brightnessper)
 
 		point := streamLight.GetPoint()
@@ -314,12 +390,53 @@ func (light *LightWithColor) unMarshalHeartBeatMessage(payload []byte) {
 			pointB := point.GetPointB()
 			pointC := point.GetPointC()
 			pointD := point.GetPointD()
+
+			allPoints := []*light1013.RGBMessage{pointA, pointB, pointC, pointD}
+			expPointNames := []string{"A", "B", "C", "D"}
+
+			for i, pointName := range expPointNames {
+				if exPoint, ok := light.rgbMap[pointName]; ok {
+					actPoint := allPoints[i]
+					if exPoint.red != uint32(actPoint.GetRed()) {
+						errMsg = append(errMsg, fmt.Sprintf("stream mode, point %s, assert red, exp: %d, act: %d", pointName, exPoint.red, actPoint.GetRed()))
+					}
+					if exPoint.green != uint32(actPoint.GetGreen()) {
+						errMsg = append(errMsg, fmt.Sprintf("stream mode, point %s, assert green, exp: %d, act: %d", pointName, exPoint.green, actPoint.GetGreen()))
+					}
+					if exPoint.blue != uint32(actPoint.GetBlue()) {
+						errMsg = append(errMsg, fmt.Sprintf("stream mode, point %s, assert blue, exp: %d, act: %d", pointName, exPoint.blue, actPoint.GetBlue()))
+					}
+				}
+			}
+
 			log.Infof("彩灯 %s (%s) 流光模式, Point A, Red: %d, Green: %d, Blue: %d", light.DevKEY, light.ProdCode, pointA.GetRed(), pointA.GetGreen(), pointA.GetBlue())
 			log.Infof("彩灯 %s (%s) 流光模式, Point B, Red: %d, Green: %d, Blue: %d", light.DevKEY, light.ProdCode, pointB.GetRed(), pointB.GetGreen(), pointB.GetBlue())
 			log.Infof("彩灯 %s (%s) 流光模式, Point C, Red: %d, Green: %d, Blue: %d", light.DevKEY, light.ProdCode, pointC.GetRed(), pointC.GetGreen(), pointC.GetBlue())
 			log.Infof("彩灯 %s (%s) 流光模式, Point D, Red: %d, Green: %d, Blue: %d", light.DevKEY, light.ProdCode, pointD.GetRed(), pointD.GetGreen(), pointD.GetBlue())
 		}
 	}
+
+	if !light.IsCmdSent {
+		return
+	}
+
+	// product code, device key, test case, test time.
+	contents := []string{light.ProdCode, light.DevKEY, light.testcase, commontool.GetCurrentTime()}
+	if errMsg != nil && len(errMsg) > 0 {
+		if notPassAndwaitNextHeartBeat < 3 {
+			notPassAndwaitNextHeartBeat++
+			return
+		}
+		contents = append(contents, "Fail")
+		contents = append(contents, errMsg...)
+	} else {
+		contents = append(contents, "Pass")
+	}
+	result.WriteToExcel(contents)
+	// reset to 0
+	notPassAndwaitNextHeartBeat = 0
+	light.IsCmdSent = false
+
 }
 
 // 解析服务器控制消息
@@ -497,4 +614,19 @@ func getRGBData() {
 	}
 
 	rgbNum = len(rgb)
+}
+
+func controlRunMode() {
+	go func() {
+		interval := time.NewTicker(time.Hour * 1).C
+		for {
+			select {
+			case <-interval:
+				testMode++
+				if testMode > 3 {
+					testMode = 0
+				}
+			}
+		}
+	}()
 }

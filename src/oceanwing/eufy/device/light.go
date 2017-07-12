@@ -31,20 +31,19 @@ type Light struct {
 }
 
 // NewLight 新建一个 Light 实例.
-func NewLight(prodCode, devKey, devid string) EufyDevice {
+func NewLight(prodCode, devKey string) EufyDevice {
 	o := &Light{
 		mode:   0,
 		status: 1,
 	}
 	o.ProdCode = prodCode
 	o.DevKEY = devKey
-	o.DevID = devid
 	o.PubTopicl = "DEVICE/" + prodCode + "/" + devKey + "/SUB_MESSAGE"
 	o.SubTopicl = "DEVICE/" + prodCode + "/" + devKey + "/PUH_MESSAGE"
 	o.DeviceMsg = make(chan []byte)
 	o.ServerMsg = make(chan []byte)
 	o.stopCtrlFunc = make(chan struct{})
-	log.Infof("Create a Light, product code: %s, device key: %s, device id: %s", prodCode, devKey, devid)
+	log.Infof("Create a Light, product code: %s, device key: %s", prodCode, devKey)
 	return o
 }
 
@@ -55,11 +54,11 @@ func (light *Light) HandleSubscribeMessage() {
 		for {
 			select {
 			case devmsg := <-light.DeviceMsg:
-				log.Infof("get new incoming message from device: %s", light.DevKEY)
-				light.unMarshalHeartBeatMsg(devmsg)
+				log.Infof("======设备上报消息: %s======", light.DevKEY)
+				go light.unMarshalHeartBeatMsg(devmsg)
 			case serMsg := <-light.ServerMsg:
-				log.Info("get new incoming message from server")
-				light.unMarshalServerMsg(serMsg)
+				log.Info("======服务器控制消息======")
+				go light.unMarshalServerMsg(serMsg)
 			}
 		}
 	}()

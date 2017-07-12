@@ -2,10 +2,8 @@ package serverpoint
 
 import (
 	"oceanwing/eufy/device"
-	"oceanwing/eufy/result"
 	"oceanwing/eufy/user"
 	"oceanwing/mqttclient"
-	"strconv"
 	"strings"
 
 	log "github.com/cihub/seelog"
@@ -35,15 +33,17 @@ func (s *MqttServerPoint) SetupRunningDevices(keys []string) {
 	var dev device.EufyDevice
 	for _, key := range keys {
 		codeAndKey := strings.Split(key, ":")
-		switch codeAndKey[0] {
+		prod := codeAndKey[0]
+		devkey := codeAndKey[1]
+		switch prod {
 		case "T1012", "T1011":
-			dev = device.NewLight(codeAndKey[0], codeAndKey[1], codeAndKey[2])
+			dev = device.NewLight(prod, devkey)
 		case "T1013", "T1604":
-			dev = device.NewLightWithColor(codeAndKey[0], codeAndKey[1], codeAndKey[2])
+			dev = device.NewLightWithColor(prod, devkey)
 		case "T2103":
-			dev = device.NewRobotCleaner(codeAndKey[0], codeAndKey[1])
+			dev = device.NewRobotCleaner(prod, devkey)
 		}
-		log.Debugf("Create a %s device, Key: %s", codeAndKey[0], codeAndKey[1])
+		log.Debugf("Create a %s device, Key: %s", prod, devkey)
 		dev.HandleSubscribeMessage()
 		s.devices = append(s.devices, dev)
 	}
@@ -125,9 +125,10 @@ func (s *MqttServerPoint) PublishMsgToBroker() {
 // HappyEnding 用于把每个设备发出的指令数、解析的心跳数，写入结果文件.
 func HappyEnding() {
 	log.Info("测试结束")
-	for _, dev := range servPointInstance.devices {
-		result.WriteToResultFile(dev.GetProductCode(), dev.GetProductKey(), "SentCmd", strconv.Itoa(dev.GetSentCmds()),
-			"Decoded heart Beat", strconv.Itoa(dev.GetDecodedheartBeat()))
-	}
-	result.CloseResultFile()
+	// for _, dev := range servPointInstance.devices {
+	// 	result.WriteToResultFile(dev.GetProductCode(), dev.GetProductKey(), "SentCmd", strconv.Itoa(dev.GetSentCmds()),
+	// 		"Decoded heart Beat", strconv.Itoa(dev.GetDecodedheartBeat()))
+	// }
+	// result.CloseResultFile()
+
 }
