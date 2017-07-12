@@ -13,14 +13,8 @@ import (
 // Light 灯泡类产品的一个 struct 描述，包括 T1011,T1012,T1013
 type Light struct {
 	baseDevice
-	// status           string
-	lum              uint32
-	colorTemp        uint32
-	isCtrlFunRunning bool
-	stopCtrlFunc     chan struct{}
-	onOffStatChan    chan string
-	runMod           int
-	awayModTesting   bool
+	onOffStatChan  chan string
+	awayModTesting bool
 }
 
 // NewLight 新建一个 Light 实例
@@ -31,7 +25,6 @@ func NewLight(prodCode, devKey string) EufyDevice {
 	o.SubDeviceTopic = "DEVICE/" + prodCode + "/" + devKey + "/PUH_MESSAGE" // 订阅设备的消息
 	o.SubServerTopic = "DEVICE/" + prodCode + "/" + devKey + "/SUB_MESSAGE" //订阅服务器的消息
 	o.SubMessage = make(chan MQTT.Message)
-	o.stopCtrlFunc = make(chan struct{})
 	o.resultMap = make(map[string]string)
 	o.onOffStatChan = make(chan string, 2)
 	log.Debugf("灯泡 %s (%s) 订阅设备主题: %s, 订阅服务器主题: %s", o.DevKEY, o.ProdCode, o.SubDeviceTopic, o.SubServerTopic)
@@ -145,7 +138,7 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 		light.awayModTesting = false
 	}
 
-	// 如果 channel 中缓存已满，必须取出一个, 否则下次心跳再往里面发数据的时候程序会死掉
+	// 如果 channel 中缓存已满，必须取出一个, 否则下次心跳再往里面发数据的时候程序会死掉.
 	if len(light.onOffStatChan) == 2 {
 		<-light.onOffStatChan
 	}

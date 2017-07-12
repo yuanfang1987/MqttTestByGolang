@@ -5,7 +5,7 @@ import (
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 )
 
-// haha
+// 字典的key
 const (
 	LeaveModeUpExp        = "leave_mode_up_exp"
 	LeaveModeUp           = "leave_Mode_Up"
