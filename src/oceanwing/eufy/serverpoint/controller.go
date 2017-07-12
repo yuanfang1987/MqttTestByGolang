@@ -35,6 +35,8 @@ func (s *MqttServerPoint) SetupRunningDevices(keys []string) {
 		switch codeAndKey[0] {
 		case "T1012", "T1011":
 			dev = device.NewLight(codeAndKey[0], codeAndKey[1])
+		case "T1013", "T1604":
+			dev = device.NewLightWithColor(codeAndKey[0], codeAndKey[1])
 		}
 		log.Debugf("Create a %s device, Key: %s", codeAndKey[0], codeAndKey[1])
 		dev.HandleSubscribeMessage()

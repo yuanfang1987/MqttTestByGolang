@@ -44,11 +44,10 @@ type rgbInfo struct {
 }
 
 // NewLightWithColor create a new color light instance.
-func NewLightWithColor(prodCode, devKey, devid string) EufyDevice {
+func NewLightWithColor(prodCode, devKey string) EufyDevice {
 	o := &LightWithColor{}
 	o.ProdCode = prodCode
 	o.DevKEY = devKey
-	o.DevID = devid
 	o.SubServerTopic = "DEVICE/" + prodCode + "/" + devKey + "/SUB_MESSAGE"
 	o.SubDeviceTopic = "DEVICE/" + prodCode + "/" + devKey + "/PUH_MESSAGE"
 	o.SubMessage = make(chan MQTT.Message)
@@ -56,7 +55,7 @@ func NewLightWithColor(prodCode, devKey, devid string) EufyDevice {
 	o.rgbMap = make(map[string]*rgbInfo)
 	o.resultMap = make(map[string]string)
 	o.onOffStatChan = make(chan string, 2)
-	log.Infof("Create a color Light, product code: %s, device key: %s, device id: %s", prodCode, devKey, devid)
+	log.Infof("Create a color Light, product code: %s, device key: %s", prodCode, devKey)
 	// 读取RGB配色信息
 	// getRGBData()
 	return o
@@ -283,7 +282,7 @@ func (light *LightWithColor) unMarshalHeartBeatMessage(payload []byte) {
 	log.Infof("彩灯 %s (%s) Status: %s", light.DevKEY, light.ProdCode, status.String())
 
 	leaveHomeState := devBaseInfo.GetLeaveHomeState()
-	log.Infof("彩灯 %s (%s) leaveHomeState: %t", leaveHomeState)
+	log.Infof("彩灯 %s (%s) leaveHomeState: %t", light.DevKEY, light.ProdCode, leaveHomeState)
 
 	// 把当前心跳的 status 存入 channel, 最多可以存 2 个
 	light.onOffStatChan <- status.String()
