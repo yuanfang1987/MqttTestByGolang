@@ -41,19 +41,20 @@ type EufyDevice interface {
 }
 
 type baseDevice struct {
-	ProdCode                   string
-	DevKEY                     string
-	DevID                      string //预留，不一定能用得到
-	PubTopicl                  string
-	SubTopicl                  string
-	DeviceMsg                  chan []byte
-	ServerMsg                  chan []byte
-	IsCmdSent                  bool
-	IsTestPassed               bool
-	CmdSentQuantity            int //下发的指令数量
-	DecodeHeartBeatMsgQuantity int //解析的心跳消息数量
-	HangOn                     int
-	RunMod                     int // 0：NORMAL_MODE， 1： AWAY_MODE， 2： STREAMER_MODE
+	ProdCode                    string
+	DevKEY                      string
+	DevID                       string //预留，不一定能用得到
+	PubTopicl                   string
+	SubTopicl                   string
+	DeviceMsg                   chan []byte
+	ServerMsg                   chan []byte
+	IsCmdSent                   bool
+	IsTestPassed                bool
+	CmdSentQuantity             int //下发的指令数量
+	DecodeHeartBeatMsgQuantity  int //解析的心跳消息数量
+	RunMod                      int // 0：NORMAL_MODE， 1： AWAY_MODE， 2： STREAMER_MODE
+	testcase                    string
+	notPassAndwaitNextHeartBeat int
 }
 
 func (b *baseDevice) GetSubTopic() string {

@@ -22,11 +22,10 @@ const (
 )
 
 var (
-	rgb                         []map[string]interface{}
-	rgbNum                      int
-	colorModCaseIndex           = 0
-	notPassAndwaitNextHeartBeat = 0
-	testMode                    = 0
+	rgb               []map[string]interface{}
+	rgbNum            int
+	colorModCaseIndex = 0
+	testMode          = 0
 )
 
 // LightWithColor 是对产品 T1013、T1604 的描述
@@ -40,7 +39,6 @@ type LightWithColor struct {
 	onOffStatus     light1013.LIGHT_ONOFF_STATUS
 	streamModeSpeed int32
 	mod             light1013.LIGHT_DEV_MODE
-	testcase        string
 }
 
 // RGB 配色信息
@@ -88,10 +86,11 @@ func (light *LightWithColor) HandleSubscribeMessage() {
 
 // BuildProtoBufMessage 实现 EufyDevice 接口
 func (light *LightWithColor) BuildProtoBufMessage() []byte {
-	if notPassAndwaitNextHeartBeat != 0 {
-		log.Warnf("上次心跳验证未通过，等待下次验证，当前已验证 %d 次", notPassAndwaitNextHeartBeat)
+	if light.notPassAndwaitNextHeartBeat != 0 {
+		log.Warnf("上次心跳验证未通过，等待下次验证，当前已验证 %d 次", light.notPassAndwaitNextHeartBeat)
 		return nil
 	}
+
 	var serMsg *light1013.ServerMessage
 	serMsg = light.setDataForLight(testMode)
 
@@ -100,6 +99,9 @@ func (light *LightWithColor) BuildProtoBufMessage() []byte {
 		log.Errorf("build protobuf message fail: %s", err)
 		return nil
 	}
+
+	log.Info("=================================================")
+
 	// 标记一下
 	light.IsCmdSent = true
 	return data
@@ -308,7 +310,7 @@ func (light *LightWithColor) unMarshalHeartBeatMessage(payload []byte) {
 	// CmdType
 	cmdtype := devBaseInfo.GetType()
 	if cmdtype != light1013.CmdType_DEV_REPORT_STATUS {
-		errMsg = append(errMsg, fmt.Sprintf("assert CmdType fail, exp: %s, act: %s", cmdtype.String(), light1013.CmdType_DEV_REPORT_STATUS.String()))
+		errMsg = append(errMsg, fmt.Sprintf("assert CmdType fail, exp: %s, act: %s", light1013.CmdType_DEV_REPORT_STATUS.String(), cmdtype.String()))
 	}
 	log.Infof("彩灯 %s (%s) CmdType: %s", light.DevKEY, light.ProdCode, cmdtype.String())
 
@@ -324,7 +326,7 @@ func (light *LightWithColor) unMarshalHeartBeatMessage(payload []byte) {
 	if light.onOffStatus != status {
 		errMsg = append(errMsg, fmt.Sprintf("assert onOff status fail, exp: %s, act: %s", light.onOffStatus.String(), status.String()))
 	}
-	log.Infof("彩灯 %s (%s) Mode: %s", light.DevKEY, light.ProdCode, status.String())
+	log.Infof("彩灯 %s (%s) status: %s", light.DevKEY, light.ProdCode, status.String())
 
 	// leaveHomeState, 这个就不要判断了， 会有专门的测试
 	leaveHomeState := devBaseInfo.GetLeaveHomeState()
@@ -423,8 +425,8 @@ func (light *LightWithColor) unMarshalHeartBeatMessage(payload []byte) {
 	// product code, device key, test case, test time.
 	contents := []string{light.ProdCode, light.DevKEY, light.testcase, commontool.GetCurrentTime()}
 	if errMsg != nil && len(errMsg) > 0 {
-		if notPassAndwaitNextHeartBeat < 3 {
-			notPassAndwaitNextHeartBeat++
+		if light.notPassAndwaitNextHeartBeat < 3 {
+			light.notPassAndwaitNextHeartBeat++
 			return
 		}
 		contents = append(contents, "Fail")
@@ -434,7 +436,7 @@ func (light *LightWithColor) unMarshalHeartBeatMessage(payload []byte) {
 	}
 	result.WriteToExcel(contents)
 	// reset to 0
-	notPassAndwaitNextHeartBeat = 0
+	light.notPassAndwaitNextHeartBeat = 0
 	light.IsCmdSent = false
 
 }

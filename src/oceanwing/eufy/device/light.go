@@ -5,8 +5,8 @@ import (
 	"math"
 	"math/rand"
 	"oceanwing/commontool"
+
 	"oceanwing/eufy/result"
-	"time"
 
 	log "github.com/cihub/seelog"
 	"github.com/golang/protobuf/proto"
@@ -66,17 +66,12 @@ func (light *Light) HandleSubscribeMessage() {
 
 // BuildProtoBufMessage 实现 EufyDevice 接口
 func (light *Light) BuildProtoBufMessage() []byte {
-	// 如果在跑离家模式，则不发任何指令
-	if light.RunMod == 1 {
-		log.Info("正在跑离家模式......")
+	// 如果上一次的测试结果没有通过，则被挂起，则先不要发新的指令过去
+	if light.notPassAndwaitNextHeartBeat != 0 {
+		log.Warnf("上次心跳验证未通过，等待下次验证，当前已验证 %d 次", light.notPassAndwaitNextHeartBeat)
 		return nil
 	}
 
-	// 如果上一次的测试结果没有通过，则被挂起，则先不要发新的指令过去
-	if light.HangOn != 0 {
-		log.Warnf("上一次测试未通过，需等待新的心跳消息来继续验证， HangOn: %d", light.HangOn)
-		return nil
-	}
 	o := light.setLightBrightAndColor()
 	data, err := proto.Marshal(o)
 
@@ -89,8 +84,6 @@ func (light *Light) BuildProtoBufMessage() []byte {
 
 	// 设置 IsCmdSent 标志为 true
 	light.IsCmdSent = true
-	// 已下发的指令数量累加 1
-	light.CmdSentQuantity++
 
 	return data
 }
@@ -100,7 +93,6 @@ func (light *Light) BuildProtoBufMessage() []byte {
 func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage {
 
 	seed := commontool.RandInt64(0, 10)
-	var content string
 	var lightData *lightT1012.ServerMessage_SetLightData_
 	// seed 随机数产生的范围是 0 到 9 共 10 个数字，则用 30%的概率去执行开关灯， 剩下的执行调节亮度色温
 	if seed < 3 {
@@ -113,7 +105,7 @@ func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage {
 			light.status = 0
 			light.lum = 0
 			// light.colorTemp = 0
-			content = "关灯"
+			light.testcase = "关灯"
 		} else {
 			nextStatus = lightT1012.LIGHT_ONOFF_STATUS_ON.Enum()
 			log.Info("开灯")
@@ -121,7 +113,7 @@ func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage {
 			light.status = 1
 			light.lum = 100
 			light.colorTemp = 0
-			content = "开灯"
+			light.testcase = "开灯"
 		}
 
 		lightData = &lightT1012.ServerMessage_SetLightData_{
@@ -138,7 +130,7 @@ func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage {
 		light.colorTemp = color
 		light.status = 1
 		log.Infof("执行调节亮度色温操作, lum: %d, colorTemp: %d", brightness, color)
-		content = "调节亮度和色温"
+		light.testcase = "调节亮度和色温"
 
 		lightData = &lightT1012.ServerMessage_SetLightData_{
 			SetLightData: &lightT1012.ServerMessage_SetLightData{
@@ -151,102 +143,12 @@ func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage {
 		}
 	}
 
-	// 在.csv 结果文件上打个标志
-	result.WriteToResultFile(light.ProdCode, light.DevKEY, "NA", content, "NA")
-
 	o := &lightT1012.ServerMessage{
 		SessionId:     proto.Int32(rand.Int31n(math.MaxInt32)),
 		RemoteMessage: lightData,
 	}
 
 	return o
-}
-
-// ControlAwayModStatus 实现了 EufyDevice 接口
-func (light *Light) ControlAwayModStatus(startHour, startMinute, endHour, endMinute int) {
-	go func() {
-		light.isCtrlFunRunning = true
-		interval := time.NewTicker(time.Second * 1).C
-		for {
-			select {
-			case <-interval:
-				nowTime := time.Now()
-				// 当前时间与开始时间作对比， 如何相等， 则标识 RunMod 为离家模式
-				if nowTime.Hour() == startHour && nowTime.Minute() == startMinute && nowTime.Second() == 0 {
-					light.RunMod = 1
-					light.mode = 1
-					log.Infof("灯泡 %s (%s) 开启离家模式", light.DevKEY, light.ProdCode)
-					result.WriteToResultFile(light.ProdCode, light.DevKEY, "NA", "开启离家模式", "NA")
-				}
-				// 当前时间与结束时间作对比， 如何相等， 则标识 RunMod 为正常模式
-				if nowTime.Hour() == endHour && nowTime.Minute() == endMinute && nowTime.Second() == 0 {
-					light.RunMod = 0
-					light.mode = 0
-					log.Infof("灯泡 %s (%s) 恢复正常模式", light.DevKEY, light.ProdCode)
-					result.WriteToResultFile(light.ProdCode, light.DevKEY, "NA", "恢复正常模式", "NA")
-				}
-			case <-light.stopCtrlFunc:
-				light.isCtrlFunRunning = false
-				//干掉这个函数
-				return
-			}
-		}
-	}()
-}
-
-// leave 模式下
-func (light *Light) leaveModeTest(devInfo *lightT1012.DeviceMessage_ReportDevBaseInfo) {
-	var l uint32
-	var c uint32
-	var assertFlag string
-	var testContent string
-	mod := devInfo.GetMode()
-	stat := devInfo.GetOnoffStatus()
-	modStr := lightT1012.DeviceMessage_ReportDevBaseInfo_LIGHT_DEV_MODE_name[int32(mod)]
-	statStr := lightT1012.LIGHT_ONOFF_STATUS_name[int32(stat)]
-	log.Infof("灯泡 %s (%s) 模式: %s, 状态: %s", light.DevKEY, light.ProdCode, modStr, statStr)
-	lctrl := devInfo.GetLightCtl()
-	if lctrl != nil {
-		l = lctrl.GetLum()
-		log.Infof("灯泡 %s (%s) 亮度：%d", light.DevKEY, light.ProdCode, l)
-		if light.ProdCode != "T1011" {
-			c = lctrl.GetColorTemp()
-			log.Infof("灯泡 %s (%s) 色温: %d", light.DevKEY, light.ProdCode, c)
-		}
-	}
-
-	// 判断心跳数据, mode 字段必须是 1
-	assertFlag = light.PassedOrFailed(1 == mod)
-	testContent = fmt.Sprintf("灯泡 %s (%s) Mode, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, 1, mod)
-	result.WriteToResultFile(light.ProdCode, light.DevKEY, "Mode", testContent, assertFlag)
-
-	// 如果随机发生了开关灯， 则记录下来
-	if light.statusLeaveHome != stat {
-		light.statusLeaveHome = stat // 更新  mode
-		var str string
-		if stat == lightT1012.LIGHT_ONOFF_STATUS_ON {
-			str = "离家模式随机开灯"
-			light.lumLeaveHome = light.lumTemp // 重新开灯后， 把临时变量的值赋值给 lum
-		} else {
-			str = "离家模式随机关灯"
-			light.lumTemp = light.lumLeaveHome // 把当前亮度存放在一个临时变量中, 待下次开灯时，要拿出来对比
-			light.lumLeaveHome = 0             //关灯之后， 亮度是0
-		}
-		result.WriteToResultFile(light.ProdCode, light.DevKEY, str, "NA", "NA")
-		log.Infof("离家模式随机开关灯被触发, 本次是: %s", statStr)
-	}
-
-	// 判断亮度
-	assertFlag = light.PassedOrFailed(light.lumLeaveHome == l)
-	testContent = fmt.Sprintf("灯泡 %s (%s) lum, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.lumLeaveHome, l)
-	result.WriteToResultFile(light.ProdCode, light.DevKEY, "离家模式-亮度", testContent, assertFlag)
-
-	// 非 T1011 的才有色温
-	if light.ProdCode != "T1011" {
-		assertFlag = light.PassedOrFailed(light.colorTempLeaveHome == c)
-		testContent = fmt.Sprintf("灯泡 %s (%s) colorTemp, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.colorTempLeaveHome, c)
-		result.WriteToResultFile(light.ProdCode, light.DevKEY, "离家模式-色温", testContent, assertFlag)
-	}
 }
 
 // 解析设备心跳
@@ -265,15 +167,7 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 
 	devBaseInfo := deviceMsg.GetReportDevBaseInfo()
 	if devBaseInfo == nil {
-		// log.Warnf("提取灯泡 %s (%s) 基础信息失败", light.DevKEY, light.ProdCode)
-		return
-	}
-
-	log.Infof("解析灯泡 %s (%s) 的心跳消息成功", light.DevKEY, light.ProdCode)
-
-	// 如果是离家模式, 如何触发 RunMod = 1?
-	if light.RunMod == 1 {
-		light.leaveModeTest(devBaseInfo)
+		log.Warnf("提取灯泡 %s (%s) 基础信息失败", light.DevKEY, light.ProdCode)
 		return
 	}
 
@@ -285,106 +179,71 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 		return
 	}
 
-	// 预先假设测试结果为 passed
-	light.IsTestPassed = true
-
-	// 已解析的心跳数量累加 1
-	light.DecodeHeartBeatMsgQuantity++
-
-	// 先用一个字典来存放测试结果, 注意: 这是一个嵌套Map
-	resultMap := make(map[string]map[string]string)
-
-	var assertFlag string
-	var testContent string
+	var errMsg []string
 
 	//  CmdType
-	assertFlag = light.PassedOrFailed(lightT1012.CmdType_DEV_REPORT_STATUS == devBaseInfo.GetType())
-	testContent = fmt.Sprintf("灯泡 %s (%s) CmdType, 预期: %s, 实际: %s", light.DevKEY, light.ProdCode, lightT1012.CmdType_DEV_REPORT_STATUS.String(), devBaseInfo.GetType().String())
-	log.Info(testContent)
-
-	cmdTypeResultMap := make(map[string]string)
-	cmdTypeResultMap["content"] = testContent
-	cmdTypeResultMap["flag"] = assertFlag
-
-	resultMap["CmdType"] = cmdTypeResultMap
+	cmdtype := devBaseInfo.GetType().String()
+	if cmdtype != lightT1012.CmdType_DEV_REPORT_STATUS.String() {
+		errMsg = append(errMsg, fmt.Sprintf("assert CmdType fail, exp: %s, act: %s", lightT1012.CmdType_DEV_REPORT_STATUS.String(), cmdtype))
+	}
+	log.Infof("白灯 %s (%s) CmdType: %s", light.DevKEY, light.ProdCode, cmdtype)
 
 	// Mode
-	assertFlag = light.PassedOrFailed(light.mode == devBaseInfo.GetMode())
-	testContent = fmt.Sprintf("灯泡 %s (%s) Mode, 预期: %s, 实际: %s", light.DevKEY, light.ProdCode, light.mode.String(), devBaseInfo.GetMode().String())
-	log.Info(testContent)
-
-	modeResuleMap := make(map[string]string)
-	modeResuleMap["content"] = testContent
-	modeResuleMap["flag"] = assertFlag
-
-	resultMap["Mode"] = modeResuleMap
-
-	light.modeLeaveHome = devBaseInfo.GetMode() // 记录当前灯的模式
+	mode := devBaseInfo.GetMode().String()
+	if light.mode.String() != mode {
+		errMsg = append(errMsg, fmt.Sprintf("assert mode fail, exp: %s, act: %s", light.mode.String(), mode))
+	}
+	log.Infof("白灯 %s (%s) 模式: %s", light.DevKEY, light.ProdCode, mode)
 
 	// Status
-	assertFlag = light.PassedOrFailed(light.status == devBaseInfo.GetOnoffStatus())
-	testContent = fmt.Sprintf("灯泡 %s (%s) Status, 预期: %s, 实际: %s", light.DevKEY, light.ProdCode, light.status.String(), devBaseInfo.GetOnoffStatus().String())
-	log.Info(testContent)
-
-	statusResultMap := make(map[string]string)
-	statusResultMap["content"] = testContent
-	statusResultMap["flag"] = assertFlag
-
-	resultMap["Status"] = statusResultMap
-
-	light.statusLeaveHome = devBaseInfo.GetOnoffStatus() // 记录当前灯的开关状态
+	status := devBaseInfo.GetOnoffStatus().String()
+	if light.status.String() != status {
+		errMsg = append(errMsg, fmt.Sprintf("assert onOff status fail, exp: %s, act: %s", light.status.String(), status))
+	}
+	log.Infof("白灯 %s (%s) 开关状态: %s", light.DevKEY, light.ProdCode, status)
 
 	ligthCTRL := devBaseInfo.GetLightCtl()
 	if ligthCTRL != nil {
 		// lum
-		assertFlag = light.PassedOrFailed(light.lum == ligthCTRL.GetLum())
-		testContent = fmt.Sprintf("灯泡 %s (%s) lum, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.lum, ligthCTRL.GetLum())
-		log.Info(testContent)
-
-		lumResultMap := make(map[string]string)
-		lumResultMap["content"] = testContent
-		lumResultMap["flag"] = assertFlag
-
-		resultMap["Lum"] = lumResultMap
-
-		light.lumLeaveHome = ligthCTRL.GetLum() // 记录当前灯的亮度
-		light.lumTemp = ligthCTRL.GetLum()
+		lum := ligthCTRL.GetLum()
+		if light.lum != lum {
+			errMsg = append(errMsg, fmt.Sprintf("assert lum fail, exp: %d, act: %d", light.lum, lum))
+		}
+		log.Infof("白灯 %s (%s) 亮度: %d", light.DevKEY, light.ProdCode, lum)
 
 		// 只有 T1012 和 T1013 才有色温
 		if light.ProdCode != "T1011" {
-			assertFlag = light.PassedOrFailed(light.colorTemp == ligthCTRL.GetColorTemp())
-			testContent = fmt.Sprintf("灯泡 %s (%s) ColorTemp, 预期: %d, 实际: %d", light.DevKEY, light.ProdCode, light.colorTemp, ligthCTRL.GetColorTemp())
-			log.Info(testContent)
-
-			colorTempResultMap := make(map[string]string)
-			colorTempResultMap["content"] = testContent
-			colorTempResultMap["flag"] = assertFlag
-
-			resultMap["ColorTemp"] = colorTempResultMap
-
-			light.colorTempLeaveHome = ligthCTRL.GetColorTemp() // 记录当前灯的色温
+			colortemp := ligthCTRL.GetColorTemp()
+			if light.colorTemp != colortemp {
+				errMsg = append(errMsg, fmt.Sprintf("assert colorTemp fail, exp: %d, act: %d", light.colorTemp, colortemp))
+			}
+			log.Infof("白灯 %s (%s) 色温: %d", light.DevKEY, light.ProdCode, colortemp)
 		}
 	}
 
-	if !light.IsTestPassed {
-		light.HangOn++
-		if light.HangOn < 3 {
-			log.Error("当前测试结果未能通过， 需等待下一轮心跳验证")
+	// product code, device key, test case, test time.
+	contents := []string{light.ProdCode, light.DevKEY, light.testcase, commontool.GetCurrentTime()}
+
+	if errMsg != nil && len(errMsg) > 0 {
+		if light.notPassAndwaitNextHeartBeat < 3 {
+			light.notPassAndwaitNextHeartBeat++
 			return
 		}
+		contents = append(contents, "Fail")
+		contents = append(contents, errMsg...)
+	} else {
+		contents = append(contents, "Pass")
 	}
+
+	result.WriteToExcel(contents)
 
 	// 重置
 	light.IsCmdSent = false
-	light.HangOn = 0
-
-	// 写入 csv 文件
-	for key, m := range resultMap {
-		result.WriteToResultFile(light.ProdCode, light.DevKEY, key, m["content"], m["flag"])
-	}
+	light.notPassAndwaitNextHeartBeat = 0
 
 }
 
+// 解析服务器消息
 func (light *Light) unMarshalServerMsg(incomingPayload []byte) {
 	serMsg := &lightT1012.ServerMessage{}
 	err := proto.Unmarshal(incomingPayload, serMsg)
@@ -495,32 +354,7 @@ func (light *Light) unMarshalServerMsg(incomingPayload []byte) {
 			log.Infof("------离家模式, WeekInfo: %s", commontool.ConvertToWeekDay(leaveMsg.GetWeekInfo()))
 			leaveHomeFlag := leaveMsg.GetLeaveHomeState()
 			log.Infof("------离家模式, 是否开启: %t", leaveHomeFlag)
-			// 如果服务器下发的 离家模式 为 true，且控制函数没有运行，则跑之.
-			if leaveHomeFlag && (!light.isCtrlFunRunning) {
-				light.ControlAwayModStatus(starthour, startminute, finishhour, finishminute)
-			}
-			// 如果服务器下发的 离家模式 为 false，且控制函数已运行，则发信号干掉之.
-			if (!leaveHomeFlag) && light.isCtrlFunRunning {
-				light.stopCtrlFunc <- struct{}{}
-			}
 		}
 	}
 
 }
-
-// func buildWeekdays(weekdays []int64) uint32 {
-// 	var result uint32
-// 	for _, d := range weekdays {
-// 		devDay := convertDeviceWeekday(d)
-// 		result += uint32(1 << uint64(devDay-1))
-// 	}
-// 	return result
-// }
-
-// Convert 0,1,2,3,4,5,6 -> 1,2,3,4,5,6,7
-// func convertDeviceWeekday(weekday int64) int64 {
-// 	if weekday == int64(time.Sunday) {
-// 		return 7
-// 	}
-// 	return weekday
-// }
