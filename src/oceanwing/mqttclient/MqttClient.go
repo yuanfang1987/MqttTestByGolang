@@ -2,7 +2,6 @@ package mqttclient
 
 import (
 	"oceanwing/commontool"
-	"oceanwing/config"
 	"time"
 
 	log "github.com/cihub/seelog"
@@ -29,16 +28,16 @@ type MqttClient struct {
 func (n *MqttClient) ConnectToBroker() {
 	// debug
 	n.IsFisrtSubscribe = true
-	n.tokenTimeout = time.Duration(config.GetInt(config.MqttTokenWaitTimeout))
+	n.tokenTimeout = time.Duration(5)
 	// set up client options.
 	opt := MQTT.NewClientOptions()
 	opt.AddBroker(n.Broker)
 	opt.SetCleanSession(true)
 	opt.SetAutoReconnect(true)
-	opt.SetConnectTimeout(time.Duration(config.GetInt(config.MqttConnTimeout)) * time.Second)
-	opt.SetKeepAlive(time.Duration(config.GetInt(config.MqttKeepAlive)) * time.Second)
-	opt.SetWriteTimeout(time.Duration(config.GetInt(config.MqttWriteTimeout)) * time.Second)
-	opt.SetMaxReconnectInterval(time.Duration(config.GetInt(config.MqttmaxReconnectInterval)) * time.Second)
+	opt.SetConnectTimeout(time.Duration(30) * time.Second)
+	opt.SetKeepAlive(time.Duration(30) * time.Second)
+	opt.SetWriteTimeout(time.Duration(5) * time.Second)
+	opt.SetMaxReconnectInterval(time.Duration(10) * time.Second)
 	// onConnectionLost.
 	myConnectionLostHandler := func(c MQTT.Client, e error) {
 		log.Warnf("Connection Lost, ClientID: %s, ErrMsg: %s", n.Clientid, e.Error())
