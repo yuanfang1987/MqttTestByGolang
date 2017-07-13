@@ -17,32 +17,21 @@ import (
 // Light 灯泡类产品的一个 struct 描述，包括 T1011,T1012,T1013
 type Light struct {
 	baseDevice
-	mode               lightT1012.DeviceMessage_ReportDevBaseInfo_LIGHT_DEV_MODE
-	status             lightT1012.LIGHT_ONOFF_STATUS
-	lum                uint32
-	lumTemp            uint32 // 临时用来存放 lum
-	colorTemp          uint32
-	modeLeaveHome      lightT1012.DeviceMessage_ReportDevBaseInfo_LIGHT_DEV_MODE
-	statusLeaveHome    lightT1012.LIGHT_ONOFF_STATUS
-	lumLeaveHome       uint32
-	colorTempLeaveHome uint32
-	isCtrlFunRunning   bool
-	stopCtrlFunc       chan struct{}
+	mode      lightT1012.DeviceMessage_ReportDevBaseInfo_LIGHT_DEV_MODE
+	status    lightT1012.LIGHT_ONOFF_STATUS
+	lum       uint32
+	colorTemp uint32
 }
 
 // NewLight 新建一个 Light 实例.
 func NewLight(prodCode, devKey string) EufyDevice {
-	o := &Light{
-		mode:   0,
-		status: 1,
-	}
+	o := &Light{}
 	o.ProdCode = prodCode
 	o.DevKEY = devKey
 	o.PubTopicl = "DEVICE/" + prodCode + "/" + devKey + "/SUB_MESSAGE"
 	o.SubTopicl = "DEVICE/" + prodCode + "/" + devKey + "/PUH_MESSAGE"
 	o.DeviceMsg = make(chan []byte)
 	o.ServerMsg = make(chan []byte)
-	o.stopCtrlFunc = make(chan struct{})
 	log.Infof("Create a Light, product code: %s, device key: %s", prodCode, devKey)
 	return o
 }
@@ -102,17 +91,16 @@ func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage {
 			nextStatus = lightT1012.LIGHT_ONOFF_STATUS_OFF.Enum()
 			log.Info("关灯")
 			// 关灯后， 亮度变成 0, 色温保持和关灯前一样
-			light.status = 0
+			light.status = lightT1012.LIGHT_ONOFF_STATUS_OFF
 			light.lum = 0
-			// light.colorTemp = 0
 			light.testcase = "关灯"
 		} else {
 			nextStatus = lightT1012.LIGHT_ONOFF_STATUS_ON.Enum()
 			log.Info("开灯")
 			// 开灯后，亮度为100，色温为0，but why???
-			light.status = 1
+			light.status = lightT1012.LIGHT_ONOFF_STATUS_ON
 			light.lum = 100
-			light.colorTemp = 0
+			// light.colorTemp = 0
 			light.testcase = "开灯"
 		}
 
@@ -124,11 +112,11 @@ func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage {
 		}
 	} else {
 		// 调节亮度和色温, 随机产生亮度和色温的值
-		brightness := uint32(commontool.RandInt64(0, 101))
-		color := uint32(commontool.RandInt64(0, 101))
+		brightness := uint32(commontool.RandInt64(20, 100))
+		color := uint32(commontool.RandInt64(20, 100))
 		light.lum = brightness
 		light.colorTemp = color
-		light.status = 1
+		light.status = lightT1012.LIGHT_ONOFF_STATUS_ON
 		log.Infof("执行调节亮度色温操作, lum: %d, colorTemp: %d", brightness, color)
 		light.testcase = "调节亮度和色温"
 

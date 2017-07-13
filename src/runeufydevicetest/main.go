@@ -27,7 +27,6 @@ func main() {
 	needca := config.GetBool(config.MqttNeedCA)
 	codeKeys := config.GetString(config.EufyDeviceCodekeys)
 	interval := config.GetInt(config.EufyDeviceSendCmdInterval)
-	mod := config.GetString(config.EufyDeviceRunMode)
 
 	// 初始化日志实例
 	commontool.InitLogInstance(config.GetString(config.LogLevel))
@@ -43,10 +42,6 @@ func main() {
 		commontool.BuildTlSConfig(capath)
 	}
 
-	// 新建csv文件用于存放测试结果
-	// result.NewResultFile("./EufyDeviceFuntionalTest.csv")
-	//defer result.CloseResultFile()
-
 	// 新建 Excel 文件存放测试结果
 	result.InitExcelFile()
 	columNames := []string{"Product Code", "Device Key", "TestCase Name", "Test Time", "Test Result", "Error Message"}
@@ -59,16 +54,6 @@ func main() {
 		eufyServer.SetupRunningDevices(allDevices)
 		// run mqtt service.
 		eufyServer.RunMqttService(clientIDUserName, clientIDUserName, password, broker, needca)
-		// whether run away mode
-		if mod == "awaymode" {
-			email := config.GetString(config.AppuserEmail)
-			pwd := config.GetString(config.AppuserPassword)
-			clientid := config.GetString(config.AppuserClientid)
-			clientse := config.GetString(config.AppuserClientscret)
-			start := config.GetInt(config.AwayModeStart)
-			end := config.GetInt(config.AwayModeEnd)
-			eufyServer.SetAwayModeByRESTfulAPI(email, pwd, clientid, clientse, start, end)
-		}
 		//timer.
 		heartBeatInterval := time.NewTicker(time.Second * time.Duration(interval)).C
 		for {
@@ -83,7 +68,6 @@ func main() {
 	signal.Notify(channelSignal, os.Interrupt)
 	signal.Notify(channelSignal, syscall.SIGTERM)
 	<-channelSignal
-	// serverpoint.HappyEnding()
 	log.Info("测试结束")
 	result.SaveExcelFile()
 }

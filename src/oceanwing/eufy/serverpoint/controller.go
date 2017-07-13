@@ -78,8 +78,8 @@ func (s *MqttServerPoint) distributeMsg(message MQTT.Message) {
 	}
 }
 
-// SetAwayModeByRESTfulAPI hh..
-func (s *MqttServerPoint) SetAwayModeByRESTfulAPI(email, pwd, clientid, clientse string, start, end int) {
+// SetAwayModeByRESTfulAPI hh, stupid 废弃了
+func (s *MqttServerPoint) setAwayModeByRESTfulAPI(email, pwd, clientid, clientse string, start, end int) {
 	if len(s.devices) == 0 {
 		log.Error("No device found.")
 		return
@@ -123,12 +123,12 @@ func (s *MqttServerPoint) PublishMsgToBroker() {
 }
 
 // HappyEnding 用于把每个设备发出的指令数、解析的心跳数，写入结果文件.
-func HappyEnding() {
-	log.Info("测试结束")
-	// for _, dev := range servPointInstance.devices {
-	// 	result.WriteToResultFile(dev.GetProductCode(), dev.GetProductKey(), "SentCmd", strconv.Itoa(dev.GetSentCmds()),
-	// 		"Decoded heart Beat", strconv.Itoa(dev.GetDecodedheartBeat()))
-	// }
-	// result.CloseResultFile()
+// func HappyEnding() {
+// 	log.Info("测试结束")
+// 	// for _, dev := range servPointInstance.devices {
+// 	// 	result.WriteToResultFile(dev.GetProductCode(), dev.GetProductKey(), "SentCmd", strconv.Itoa(dev.GetSentCmds()),
+// 	// 		"Decoded heart Beat", strconv.Itoa(dev.GetDecodedheartBeat()))
+// 	// }
+// 	// result.CloseResultFile()
 
-}
+// }
