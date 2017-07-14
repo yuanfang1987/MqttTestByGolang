@@ -30,6 +30,7 @@ func newWhiteLight(clientid, username, pwd, broker, prodCode, devKey string, nee
 	w.PubTopic = "DEVICE/" + prodCode + "/" + devKey + "/PUH_MESSAGE"
 	w.SubTopic = "DEVICE/" + prodCode + "/" + devKey + "/SUB_MESSAGE"
 	w.NeedCA = needCA
+	w.msgToServer = make(chan []byte, 2) //每次都忘记初始化，死性不改！！！！！！！！
 	return w
 }
 
@@ -43,6 +44,7 @@ func (w *whiteLight) RunMqttService() {
 // 实现 Eufydevice 接口
 func (w *whiteLight) SendHeartBeat() {
 	w.msgToServer <- w.buildHeartBeatMsg()
+	// w.MqttClient.PublishMessage(w.buildHeartBeatMsg())
 }
 
 // 构造心跳数据，把问题简单化，不要搞那么复杂，只考虑亮度和色温变化即可，不管开关灯

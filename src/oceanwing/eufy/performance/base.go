@@ -32,6 +32,7 @@ func (b *baseEufy) outgoing() {
 			select {
 			case payload := <-b.msgToServer:
 				b.MqttClient.PublishMessage(payload)
+				log.Debug("send payload data from outgoing function.")
 			}
 		}
 	}()

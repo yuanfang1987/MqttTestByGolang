@@ -110,10 +110,10 @@ func (n *MqttClient) PublishMessage(payload interface{}) {
 		if token.Error() != nil {
 			log.Errorf("- - - - - publish msg fail: %s, %s", n.Clientid, token.Error().Error())
 		}
+		log.Debugf("success publish a message to topic: %s", n.PubTopic)
 	} else {
 		log.Warnf("publish message timeout, clientID: %s", n.Clientid)
 	}
-
 }
 
 // PublishMessageWithNoTimout do not wait the token return timeout.

@@ -15,6 +15,7 @@ import (
 // 这是一个描述彩灯的结构体，支持 T1013, T1604
 type colorLight struct {
 	baseEufy
+	modeIndex int
 }
 
 // NewColorLight hj.
@@ -28,6 +29,7 @@ func newColorLight(clientid, username, pwd, broker, prodCode, devKey string, nee
 	c.PubTopic = "DEVICE/" + prodCode + "/" + devKey + "/PUH_MESSAGE"
 	c.SubTopic = "DEVICE/" + prodCode + "/" + devKey + "/SUB_MESSAGE"
 	c.NeedCA = needCA
+	c.msgToServer = make(chan []byte, 2) //每次都忘记，死性不改！！！！！！！！
 	return c
 }
 
@@ -40,7 +42,11 @@ func (c *colorLight) RunMqttService() {
 
 // 实现 Eufydevice 接口
 func (c *colorLight) SendHeartBeat() {
-	c.msgToServer <- c.buildHeartBeatMsg(1)
+	c.msgToServer <- c.buildHeartBeatMsg(c.modeIndex)
+	c.modeIndex++
+	if c.modeIndex > 2 {
+		c.modeIndex = 0
+	}
 }
 
 func (c *colorLight) buildHeartBeatMsg(mode int) []byte {

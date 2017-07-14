@@ -54,6 +54,7 @@ func main() {
 		go func() {
 			// str[0] product code, str[1] device key, str[2] password
 			str := strings.Split(v, ",")
+			// new a eufy device.
 			eufyDevice := performance.NewEufyDevice(str[1], str[1], "oceanwingtest", *broker, str[0], str[1], *needca)
 			// CI: ssl://zhome-ci.eufylife.com:8893   PER: ssl://pt-broker.eufylife.com:443
 			eufyDevice.RunMqttService()
@@ -68,7 +69,7 @@ func main() {
 				}
 			}
 		}()
-		log.Infof("Run Robot Cleaner: %d", i+1)
+		log.Infof("Run eufy device: %d", i+1)
 		// --- debug
 		<-commontool.SubSinal
 	}
