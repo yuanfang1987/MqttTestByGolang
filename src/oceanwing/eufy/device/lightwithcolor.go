@@ -216,7 +216,7 @@ func (light *LightWithColor) buildStreamLightData() *light1013.StreamLight {
 	brightness := int32(commontool.RandInt64(20, 100))
 	// 储存当前数据，用于后续心跳判断
 	light.bright = uint32(brightness)
-	// 速度， 固定 1 秒， 不好吧
+	// 速度
 	speed := int32(commontool.RandInt64(1, 3))
 	light.streamModeSpeed = speed
 

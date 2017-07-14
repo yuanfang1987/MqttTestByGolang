@@ -120,15 +120,3 @@ func (n *MqttClient) PublishMessage(payload interface{}) {
 func (n *MqttClient) PublishMessageWithNoTimout(payload interface{}) {
 	n.client.Publish(n.PubTopic, byte(1), false, payload)
 }
-
-// SubcribeToBroker hh.
-// func (n *MqttClient) SubcribeToBroker(handler MQTT.MessageHandler) {
-// 	n.SubHandler = handler
-// 	token := n.client.Subscribe(n.SubTopic, byte(1), n.SubHandler)
-// 	token.WaitTimeout(10 * time.Second)
-// 	if token.Error() == nil {
-// 		log.Info("subscribe to topic: ", n.SubTopic)
-// 	} else {
-// 		log.Info("subscribe fail", n.SubTopic, ": ", token.Error())
-// 	}
-// }

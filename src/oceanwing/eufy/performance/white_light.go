@@ -38,7 +38,6 @@ func (w *whiteLight) RunMqttService() {
 	w.SubHandler = func(c MQTT.Client, msg MQTT.Message) {} // do nothing.
 	w.MqttClient.ConnectToBroker()
 	w.outgoing()
-	log.Debug("haha, in white light struct.")
 }
 
 // 实现 Eufydevice 接口

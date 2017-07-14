@@ -15,14 +15,14 @@ type Eufydevice interface {
 type baseEufy struct {
 	mqttclient.MqttClient
 	msgToServer chan []byte
-	prod string
+	prod        string
 }
 
 func (b *baseEufy) RunMqttService() {
-	log.Info("Not implemet yet.")
+	log.Error("Not implemet yet.")
 }
 func (b *baseEufy) SendHeartBeat() {
-	log.Info("Not implement yet.")
+	log.Error("Not implement yet.")
 }
 
 // 这是每个设备发出消息的出口
@@ -44,6 +44,8 @@ func NewEufyDevice(clientid, username, pwd, broker, prodCode, devKey string, nee
 	switch prodCode {
 	case "T1011", "T1012":
 		dev = newWhiteLight(clientid, username, pwd, broker, prodCode, devKey, needCA)
+	case "T1013", "T1604":
+		dev = newColorLight(clientid, username, pwd, broker, prodCode, devKey, needCA)
 	}
 	return dev
 }
