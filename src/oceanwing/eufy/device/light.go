@@ -21,6 +21,7 @@ type Light struct {
 	status    lightT1012.LIGHT_ONOFF_STATUS
 	lum       uint32
 	colorTemp uint32
+	lumTemp   uint32
 }
 
 // NewLight 新建一个 Light 实例.
@@ -44,10 +45,10 @@ func (light *Light) HandleSubscribeMessage() {
 			select {
 			case devmsg := <-light.DeviceMsg:
 				log.Infof("======设备上报消息: %s======", light.DevKEY)
-				go light.unMarshalHeartBeatMsg(devmsg)
+				light.unMarshalHeartBeatMsg(devmsg)
 			case serMsg := <-light.ServerMsg:
 				log.Info("======服务器控制消息======")
-				go light.unMarshalServerMsg(serMsg)
+				light.unMarshalServerMsg(serMsg)
 			}
 		}
 	}()
@@ -92,6 +93,7 @@ func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage {
 			log.Info("关灯")
 			// 关灯后， 亮度变成 0, 色温保持和关灯前一样
 			light.status = lightT1012.LIGHT_ONOFF_STATUS_OFF
+			light.lumTemp = light.lum
 			light.lum = 0
 			light.testcase = "关灯"
 		} else {
@@ -99,8 +101,9 @@ func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage {
 			log.Info("开灯")
 			// 开灯后，亮度为100，色温为0，but why???
 			light.status = lightT1012.LIGHT_ONOFF_STATUS_ON
-			light.lum = 100
+			// light.lum = 100
 			// light.colorTemp = 0
+			light.lum = light.lumTemp
 			light.testcase = "开灯"
 		}
 
@@ -155,7 +158,7 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 
 	devBaseInfo := deviceMsg.GetReportDevBaseInfo()
 	if devBaseInfo == nil {
-		log.Warnf("提取灯泡 %s (%s) 基础信息失败", light.DevKEY, light.ProdCode)
+		// log.Warnf("提取灯泡 %s (%s) 基础信息失败", light.DevKEY, light.ProdCode)
 		return
 	}
 
@@ -178,8 +181,9 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 
 	// Mode
 	mode := devBaseInfo.GetMode().String()
-	if light.mode.String() != mode {
-		errMsg = append(errMsg, fmt.Sprintf("assert mode fail, exp: %s, act: %s", light.mode.String(), mode))
+	expMod := lightT1012.DeviceMessage_ReportDevBaseInfo_NORMAL_MODE.String()
+	if expMod != mode {
+		errMsg = append(errMsg, fmt.Sprintf("assert mode fail, exp: %s, act: %s", expMod, mode))
 	}
 	log.Infof("白灯 %s (%s) 模式: %s", light.DevKEY, light.ProdCode, mode)
 

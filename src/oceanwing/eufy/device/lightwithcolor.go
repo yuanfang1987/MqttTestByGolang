@@ -75,10 +75,10 @@ func (light *LightWithColor) HandleSubscribeMessage() {
 			select {
 			case devmsg := <-light.DeviceMsg:
 				log.Infof("======设备上报消息: %s======", light.DevKEY)
-				go light.unMarshalHeartBeatMessage(devmsg)
+				light.unMarshalHeartBeatMessage(devmsg)
 			case serMsg := <-light.ServerMsg:
 				log.Info("======服务器控制消息======")
-				go light.unMarshalServerMessage(serMsg)
+				light.unMarshalServerMessage(serMsg)
 			}
 		}
 	}()
