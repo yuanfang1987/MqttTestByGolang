@@ -15,7 +15,7 @@ type Plug struct {
 	OnOffStatus uint32
 }
 
-// NewPlug 新建一个 Plug 实例
+// NewPlug 新建一个 Plug 实例.
 func NewPlug(prodCode, devKey, devid string) EufyDevice {
 	p := &Plug{}
 	p.ProdCode = prodCode

@@ -19,7 +19,7 @@ const (
 	dailySpeed  byte = 0
 )
 
-// RobotCleaner 是一个描述扫地机器人的 struct.
+// RobotCleaner 是一个描述扫地机器人的 struct
 type RobotCleaner struct {
 	baseDevice
 	charging       bool

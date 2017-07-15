@@ -153,8 +153,8 @@ func (light *LightWithColor) setDataForLight(mode int) *light1013.ServerMessage 
 
 // 构造白光模式的数据，用随机数来产生亮度和色温
 func (light *LightWithColor) buildWhiteLightData() *lightEvent.LampLightLevelCtlMessage {
-	brightness := uint32(commontool.RandInt64(1, 101))
-	color := uint32(commontool.RandInt64(1, 101))
+	brightness := uint32(commontool.GenerateRandNumber(10, 100))
+	color := uint32(commontool.GenerateRandNumber(10, 100))
 
 	// 储存当前数据，用于后续心跳判断
 	light.lum = brightness
@@ -169,7 +169,7 @@ func (light *LightWithColor) buildWhiteLightData() *lightEvent.LampLightLevelCtl
 // 构造彩光模式的数据
 func (light *LightWithColor) buildColorLightData() *lightEvent.LampLightRgbCtlMessage {
 	var red, green, blue uint32
-	brightness := uint32(commontool.RandInt64(10, 100))
+	brightness := uint32(commontool.GenerateRandNumber(10, 100))
 	// 储存当前数据，用于后续心跳判断
 	light.bright = brightness
 
@@ -189,9 +189,9 @@ func (light *LightWithColor) buildColorLightData() *lightEvent.LampLightRgbCtlMe
 		// 储存当前数据，用于后续心跳判断
 		light.rgbMap[colorModRGB] = expRGB
 	} else {
-		red = uint32(commontool.RandInt64(0, 255))
-		green = uint32(commontool.RandInt64(0, 255))
-		blue = uint32(commontool.RandInt64(0, 255))
+		red = uint32(commontool.GenerateRandNumber(0, 255))
+		green = uint32(commontool.GenerateRandNumber(0, 255))
+		blue = uint32(commontool.GenerateRandNumber(0, 255))
 		rrggbb := &rgbInfo{
 			red:   red,
 			green: green,
@@ -213,11 +213,11 @@ func (light *LightWithColor) buildColorLightData() *lightEvent.LampLightRgbCtlMe
 
 // 构造流光模式的数据
 func (light *LightWithColor) buildStreamLightData() *light1013.StreamLight {
-	brightness := int32(commontool.RandInt64(20, 100))
+	brightness := int32(commontool.GenerateRandNumber(20, 100))
 	// 储存当前数据，用于后续心跳判断
 	light.bright = uint32(brightness)
 	// 速度， 固定 1 秒， 不好吧
-	speed := int32(commontool.RandInt64(1, 3))
+	speed := int32(commontool.GenerateRandNumber(1, 3))
 	light.streamModeSpeed = speed
 
 	points := &light1013.ColorPointMessage{
@@ -239,16 +239,16 @@ func (light *LightWithColor) buildStreamLightData() *light1013.StreamLight {
 // RGB 数值
 func (light *LightWithColor) buildRGBData(p string) *light1013.RGBMessage {
 	var red, green, blue int32
-	var seed int64
+	var seed int
 	switch p {
 	case "A":
-		seed = commontool.RandInt64(0, 12)
+		seed = commontool.GenerateRandNumber(0, 12)
 	case "B":
-		seed = commontool.RandInt64(12, 24)
+		seed = commontool.GenerateRandNumber(12, 24)
 	case "C":
-		seed = commontool.RandInt64(24, 36)
+		seed = commontool.GenerateRandNumber(24, 36)
 	case "D":
-		seed = commontool.RandInt64(36, 51)
+		seed = commontool.GenerateRandNumber(36, 51)
 	}
 
 	if int(seed) < rgbNum {

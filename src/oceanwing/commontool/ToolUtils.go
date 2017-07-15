@@ -2,11 +2,10 @@ package commontool
 
 import (
 	"bufio"
-	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"io/ioutil"
-	"math/big"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -37,13 +36,19 @@ func GetTimeAsFileName() string {
 }
 
 // RandInt64 取值范围：大于等于 min, 小于 max
-func RandInt64(min, max int64) int64 {
-	maxBigInt := big.NewInt(max)
-	i, _ := rand.Int(rand.Reader, maxBigInt)
-	if i.Int64() < min {
-		RandInt64(min, max)
-	}
-	return i.Int64()
+// func RandInt64(min, max int64) int64 {
+// 	maxBigInt := big.NewInt(max)
+// 	i, _ := rand.Int(rand.Reader, maxBigInt)
+// 	if i.Int64() < min {
+// 		RandInt64(min, max)
+// 	}
+// 	return i.Int64()
+// }
+
+// GenerateRandNumber 用时间种子来生成不重复的随机数
+func GenerateRandNumber(min, max int) int {
+	// return rand.New(rand.NewSource(time.Now().UnixNano())).Intn(max-min) + min
+	return rand.Intn(max-min) + min
 }
 
 // ReadFileContent  hh.

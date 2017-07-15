@@ -2,8 +2,21 @@ package commontool
 
 import (
 	"fmt"
+	"math/rand"
 	"testing"
+	"time"
 )
+
+func Test_rand1(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		fmt.Printf("第 %d 次随机数：%d\n", i, rand.Intn(10))
+	}
+
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < 10; i++ {
+		fmt.Printf("时间种子随机数 %d 次, 值: %d\n", i, r.Intn(100))
+	}
+}
 
 // func Test_RandInt64(t *testing.T) {
 // 	a := RandInt64(2, 6)
@@ -86,9 +99,9 @@ import (
 // 	fmt.Printf("aa is: %d\n", int(aa))
 // }
 
-func Test_RandInt64(t *testing.T) {
-	for i := 0; i < 50; i++ {
-		d := RandInt64(0, 2)
-		fmt.Printf("value: %d\n", d)
-	}
-}
+// func Test_RandInt64(t *testing.T) {
+// 	for i := 0; i < 50; i++ {
+// 		d := RandInt64(0, 2)
+// 		fmt.Printf("value: %d\n", d)
+// 	}
+// }

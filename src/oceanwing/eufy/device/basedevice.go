@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// EufyDevice 所有 eufy device 的行为接口
+// EufyDevice 所有 eufy device 的行为接口.
 type EufyDevice interface {
 	// 当订阅的主题有消息推送下来时，用此方法来处理消息
 	HandleSubscribeMessage()

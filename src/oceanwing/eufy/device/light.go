@@ -82,7 +82,7 @@ func (light *Light) BuildProtoBufMessage() []byte {
 // brightness: 亮度，color: 色温,  ServerMessage_SetLightData
 func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage {
 
-	seed := commontool.RandInt64(0, 10)
+	seed := commontool.GenerateRandNumber(0, 10)
 	var lightData *lightT1012.ServerMessage_SetLightData_
 	// seed 随机数产生的范围是 0 到 9 共 10 个数字，则用 30%的概率去执行开关灯， 剩下的执行调节亮度色温
 	if seed < 3 {
@@ -114,9 +114,9 @@ func (light *Light) setLightBrightAndColor() *lightT1012.ServerMessage {
 			},
 		}
 	} else {
-		// 调节亮度和色温, 随机产生亮度和色温的值
-		brightness := uint32(commontool.RandInt64(20, 100))
-		color := uint32(commontool.RandInt64(20, 100))
+		// 调节亮度和色温, 随机产生亮度和色温的值.
+		brightness := uint32(commontool.GenerateRandNumber(10, 100))
+		color := uint32(commontool.GenerateRandNumber(10, 100))
 		light.lum = brightness
 		light.colorTemp = color
 		light.status = lightT1012.LIGHT_ONOFF_STATUS_ON
