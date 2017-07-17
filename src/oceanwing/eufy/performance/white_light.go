@@ -17,6 +17,10 @@ import (
 // 这是一个描述白灯的结构体，支持 T1011, T1012
 type whiteLight struct {
 	baseEufy
+	lum       uint32
+	colortemp uint32
+	status    lightT1012.LIGHT_ONOFF_STATUS
+	lumTemp   uint32 //关灯之前，要把当前亮度临时放在在这里,待开灯时再从这里取出
 }
 
 // 创建新的灯的实例
@@ -31,14 +35,37 @@ func newWhiteLight(clientid, username, pwd, broker, prodCode, devKey string, nee
 	w.SubTopic = "DEVICE/" + prodCode + "/" + devKey + "/SUB_MESSAGE"
 	w.NeedCA = needCA
 	w.msgToServer = make(chan []byte, 2) //每次都忘记初始化，死性不改！！！！！！！！
+	w.msgFromServer = make(chan []byte, 2)
+	w.lum = uint32(commontool.GenerateRandNumber(20, 100))
+	w.colortemp = uint32(commontool.GenerateRandNumber(20, 100))
+	w.status = lightT1012.LIGHT_ONOFF_STATUS_ON
 	return w
 }
 
 // 实现 Eufydevice 接口
 func (w *whiteLight) RunMqttService() {
-	w.SubHandler = func(c MQTT.Client, msg MQTT.Message) {} // do nothing.
+	w.SubHandler = func(c MQTT.Client, msg MQTT.Message) {
+		go w.distributeMsg(msg.Payload()) //把消息发给 channel
+	}
 	w.MqttClient.ConnectToBroker()
-	w.outgoing()
+	w.outgoing() //起一个 goroutine 作为publish message 的唯一出口
+	w.inComing() //起一个 goroutine 处理订阅得到的服务器的控制消息(调亮度色温&开关灯)
+
+}
+
+func (w *whiteLight) distributeMsg(payload []byte) {
+	w.msgFromServer <- payload
+}
+
+func (w *whiteLight) inComing() {
+	go func() {
+		for {
+			select {
+			case msg := <-w.msgFromServer:
+				go w.handleInComingMsg(msg) // 有必要新开一个 goroutine?
+			}
+		}
+	}()
 }
 
 // 实现 Eufydevice 接口
@@ -47,21 +74,18 @@ func (w *whiteLight) SendHeartBeat() {
 	// w.MqttClient.PublishMessage(w.buildHeartBeatMsg())
 }
 
-// 构造心跳数据，把问题简单化，不要搞那么复杂，只考虑亮度和色温变化即可，不管开关灯
+// 构造心跳数据，需要亮度、色温、开关状态这三个值， 构造灯的实例的时候已有初始化，后面会随着订阅到的服务器的控制消息而改变
 func (w *whiteLight) buildHeartBeatMsg() []byte {
-	brightness := uint32(commontool.RandInt64(20, 100))
-	color := uint32(commontool.RandInt64(20, 100))
-
 	lightData := &lightEvent.LampLightLevelCtlMessage{}
-	lightData.Lum = proto.Uint32(brightness)
+	lightData.Lum = proto.Uint32(w.lum)
 	if w.prod == "T1012" {
-		lightData.ColorTemp = proto.Uint32(color)
+		lightData.ColorTemp = proto.Uint32(w.colortemp)
 	}
 
 	baseInfo := &lightT1012.DeviceMessage_ReportDevBaseInfo_{
 		ReportDevBaseInfo: &lightT1012.DeviceMessage_ReportDevBaseInfo{
 			Type:           lightT1012.CmdType_DEV_REPORT_STATUS.Enum(),
-			OnoffStatus:    lightT1012.LIGHT_ONOFF_STATUS_ON.Enum(),
+			OnoffStatus:    w.status.Enum(), // lightT1012.LIGHT_ONOFF_STATUS_ON.Enum(),
 			Mode:           lightT1012.DeviceMessage_ReportDevBaseInfo_NORMAL_MODE.Enum(),
 			LightCtl:       lightData,
 			LastOnLightCtl: lightData,
@@ -80,4 +104,41 @@ func (w *whiteLight) buildHeartBeatMsg() []byte {
 	}
 
 	return data
+}
+
+func (w *whiteLight) handleInComingMsg(payload []byte) {
+	serMsg := &lightT1012.ServerMessage{}
+	err := proto.Unmarshal(payload, serMsg)
+	if err != nil {
+		log.Debugf("unMarshal server message fail: %s", err)
+		return
+	}
+
+	setlightdata := serMsg.GetSetLightData()
+	if setlightdata == nil {
+		return
+	}
+
+	//如果控制亮度色温的操作，则取出相应的值组装心跳消息，然后就结束
+	lightCtrl := setlightdata.GetLightCtl()
+	if lightCtrl != nil {
+		w.lum = lightCtrl.GetLum()
+		if w.prod == "T1012" {
+			w.colortemp = lightCtrl.GetColorTemp()
+		}
+		w.msgToServer <- w.buildHeartBeatMsg()
+		return
+	}
+
+	onOffStat := setlightdata.GetOnoffStatus()
+	w.status = onOffStat
+	// 如果是关灯操作， 则把当前亮度存给 lumTemp， 然后把亮度置为0， 改变状态， 色温不用管
+	if onOffStat == lightT1012.LIGHT_ONOFF_STATUS_OFF {
+		w.lumTemp = w.lum
+		w.lum = 0
+	} else {
+		// 如果是开灯操作, 把上次关灯前的亮度取出来
+		w.lum = w.lumTemp
+	}
+	w.msgToServer <- w.buildHeartBeatMsg()
 }

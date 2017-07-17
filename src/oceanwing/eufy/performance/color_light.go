@@ -30,6 +30,7 @@ func newColorLight(clientid, username, pwd, broker, prodCode, devKey string, nee
 	c.SubTopic = "DEVICE/" + prodCode + "/" + devKey + "/SUB_MESSAGE"
 	c.NeedCA = needCA
 	c.msgToServer = make(chan []byte, 2) //每次都忘记，死性不改！！！！！！！！
+	c.msgFromServer = make(chan []byte, 2)
 	return c
 }
 

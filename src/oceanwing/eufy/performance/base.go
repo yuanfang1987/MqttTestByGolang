@@ -14,15 +14,16 @@ type Eufydevice interface {
 
 type baseEufy struct {
 	mqttclient.MqttClient
-	msgToServer chan []byte
-	prod        string
+	msgToServer   chan []byte
+	msgFromServer chan []byte
+	prod          string
 }
 
 func (b *baseEufy) RunMqttService() {
-	log.Error("Not implemet yet.")
+	log.Error("function RunMqttService() Not implemet yet.")
 }
 func (b *baseEufy) SendHeartBeat() {
-	log.Error("Not implement yet.")
+	log.Error("function SendHeartBeat() Not implement yet.")
 }
 
 // 这是每个设备发出消息的出口

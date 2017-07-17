@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"io/ioutil"
 	"math/big"
+	myRand "math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -44,6 +45,12 @@ func RandInt64(min, max int64) int64 {
 		RandInt64(min, max)
 	}
 	return i.Int64()
+}
+
+// GenerateRandNumber 用时间种子来生成不重复的随机数
+func GenerateRandNumber(min, max int) int {
+	// return rand.New(rand.NewSource(time.Now().UnixNano())).Intn(max-min) + min
+	return myRand.Intn(max-min) + min
 }
 
 // ReadFileContent  hh.
