@@ -55,8 +55,8 @@ func NewLightWithColor(prodCode, devKey string) EufyDevice {
 	o.DevKEY = devKey
 	o.PubTopicl = "DEVICE/" + prodCode + "/" + devKey + "/SUB_MESSAGE"
 	o.SubTopicl = "DEVICE/" + prodCode + "/" + devKey + "/PUH_MESSAGE"
-	o.DeviceMsg = make(chan []byte)
-	o.ServerMsg = make(chan []byte)
+	o.DeviceMsg = make(chan []byte, 3)
+	o.ServerMsg = make(chan []byte, 3)
 	o.stopCtrlFunc = make(chan struct{})
 	o.rgbMap = make(map[string]*rgbInfo)
 	o.onOffStatus = light1013.LIGHT_ONOFF_STATUS_ON // 测试前必须要确保灯是开的

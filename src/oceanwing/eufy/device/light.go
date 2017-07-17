@@ -31,8 +31,8 @@ func NewLight(prodCode, devKey string) EufyDevice {
 	o.DevKEY = devKey
 	o.PubTopicl = "DEVICE/" + prodCode + "/" + devKey + "/SUB_MESSAGE"
 	o.SubTopicl = "DEVICE/" + prodCode + "/" + devKey + "/PUH_MESSAGE"
-	o.DeviceMsg = make(chan []byte)
-	o.ServerMsg = make(chan []byte)
+	o.DeviceMsg = make(chan []byte, 3)
+	o.ServerMsg = make(chan []byte, 3)
 	log.Infof("Create a Light, product code: %s, device key: %s", prodCode, devKey)
 	return o
 }
