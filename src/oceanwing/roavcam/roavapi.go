@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"io/ioutil"
 	"net/http"
+	"oceanwing/eufy/result"
 	"strings"
 	"time"
 
@@ -18,14 +19,17 @@ var (
 type HTTPClient struct {
 	httpclient *http.Client
 	req        chan *http.Request
-	res        chan []byte
+	resheart   chan []byte
+	resFiles   chan []byte
+	reqType    int
 }
 
 func init() {
 	client = &HTTPClient{
 		httpclient: &http.Client{Timeout: 30 * time.Second},
 		req:        make(chan *http.Request, 2),
-		res:        make(chan []byte, 2),
+		resheart:   make(chan []byte, 2),
+		resFiles:   make(chan []byte, 2),
 	}
 }
 
@@ -39,31 +43,39 @@ func (c *HTTPClient) outgoing() {
 				if err == nil && resp.StatusCode == 200 {
 					defer resp.Body.Close()
 					bd, _ := ioutil.ReadAll(resp.Body)
-					c.res <- bd
+					if c.reqType == 1 {
+						c.resheart <- bd
+					} else if c.reqType == 2 {
+						c.resFiles <- bd
+					}
 					log.Info("send response data to channel res")
 				} else {
 					log.Infof("request to server fail: %s\n", err)
-					c.res <- nil
 				}
 			}
 		}
 	}()
 }
 
-// handleResponce 用于统一处理HTTP请求的返回数据，主要是转为simple JSON的对象
+// handleResponce 用于统一处理HTTP请求的返回数据
 func (c *HTTPClient) handleResponce() {
 	go func() {
 		for {
 			select {
-			case resp := <-c.res:
-				log.Info("result: ")
-				log.Info(string(resp))
+			case res1 := <-c.resheart:
+				log.Info("心跳返回: ")
+				log.Info(string(res1))
+			case res2 := <-c.resFiles:
+				log.Info("文件列表")
+				log.Info(string(res2))
+				c.parXMLResult(res2)
 			}
 		}
 	}()
 }
 
-func (c *HTTPClient) sendChannel(re *http.Request) {
+func (c *HTTPClient) sendChannel(typ int, re *http.Request) {
+	c.reqType = typ
 	c.req <- re
 }
 
@@ -115,14 +127,16 @@ func (c *HTTPClient) parXMLResult(data []byte) {
 		nextTi := parseTime(nextStartTime)
 
 		if nextTi.Unix()-prevTi.Unix() > 5 {
-
+			content := []string{prev.Name, prev.Time, next.Name, next.Time, "文件不连续"}
+			result.WriteToExcel(content)
 		}
 
 	}
 
 }
 
-func sendRoavAPI() {
+// SendRoavAPI hh.
+func SendRoavAPI() {
 	client.outgoing()
 	client.handleResponce()
 
@@ -135,9 +149,9 @@ func sendRoavAPI() {
 	for {
 		select {
 		case <-interval1:
-			client.sendChannel(heartBeatReq)
+			client.sendChannel(1, heartBeatReq)
 		case <-interval2:
-			client.sendChannel(getFileListReq)
+			client.sendChannel(2, getFileListReq)
 		}
 	}
 
