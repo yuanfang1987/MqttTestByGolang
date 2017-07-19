@@ -48,6 +48,8 @@ func NewEufyDevice(clientid, username, pwd, broker, prodCode, devKey string, nee
 		dev = newWhiteLight(clientid, username, pwd, broker, prodCode, devKey, needCA)
 	case "T1013", "T1604":
 		dev = newColorLight(clientid, username, pwd, broker, prodCode, devKey, needCA)
+	case "T2103":
+		dev = newRobotCleaner(clientid, username, pwd, broker, prodCode, devKey, needCA)
 	}
 	return dev
 }
