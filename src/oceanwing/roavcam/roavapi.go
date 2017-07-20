@@ -129,8 +129,13 @@ func (c *HTTPClient) parXMLResult(data []byte) {
 		if nextTi.Unix()-prevTi.Unix() > 5 {
 			content := []string{prev.Name, prev.Time, next.Name, next.Time, "文件不连续"}
 			result.WriteToExcel(content)
+			log.Infof("assert fail: %v", content)
 		}
 
+		// log
+		log.Infof("Prev file name: %s, end time: %s", prev.Name, prevEndTime)
+		log.Infof("Next file name: %s, start time: %s", next.Name, nextStartTime)
+		log.Infof("prev and next file diff time: %d seconds", nextTi.Unix()-prevTi.Unix())
 	}
 
 }
@@ -155,4 +160,22 @@ func SendRoavAPI() {
 		}
 	}
 
+}
+
+// RunService hh.
+func RunService() {
+	client.outgoing()
+	client.handleResponce()
+}
+
+// SendHeartBeat hh.
+func SendHeartBeat() {
+	heartBeatReq, _ := http.NewRequest("GET", "http://192.168.1.254/?custom=1&cmd=3016", nil)
+	client.sendChannel(1, heartBeatReq)
+}
+
+// GetFileListAndAssert h.
+func GetFileListAndAssert() {
+	getFileListReq, _ := http.NewRequest("GET", "http://192.168.1.254/?custom=1&cmd=3015", nil)
+	client.sendChannel(2, getFileListReq)
 }
