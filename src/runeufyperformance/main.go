@@ -53,11 +53,15 @@ func main() {
 	log.Infof("use test file: %s", *filePath)
 	log.Infof("set heart beat interval : %d", *interval)
 
-	if *startIndex != 0 && *endIndex != 0 {
+	if *startIndex > 0 {
 		start = *startIndex
-		end = *endIndex
 	} else {
 		start = 0
+	}
+
+	if *endIndex > 0 {
+		end = *endIndex
+	} else {
 		end = len(eufyDevList)
 	}
 
