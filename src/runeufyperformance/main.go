@@ -18,6 +18,8 @@ func main() {
 	defer log.Flush()
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
+	var start, end int
+
 	// 从命令行获取参数
 	needca := flag.Bool("needca", true, "use CA to connect to broker")
 	capath := flag.String("capath", "EUFY_GD_CA.crt", "ca path to build CA")
@@ -25,6 +27,8 @@ func main() {
 	filePath := flag.String("filePath", "", "the path to the test data file.")
 	interval := flag.Int("interval", 20, "device heart beat interval in seconds.")
 	loglevel := flag.String("loglevel", "info", "log level")
+	startIndex := flag.Int("startIndex", 0, "start index")
+	endIndex := flag.Int("endIndex", 0, "end index.")
 	flag.Parse()
 
 	// 初始化日志实例
@@ -49,8 +53,20 @@ func main() {
 	log.Infof("use test file: %s", *filePath)
 	log.Infof("set heart beat interval : %d", *interval)
 
-	// run test..
-	for i, v := range eufyDevList {
+	if *startIndex != 0 && *endIndex != 0 {
+		start = *startIndex
+		end = *endIndex
+	} else {
+		start = 0
+		end = len(eufyDevList)
+	}
+
+	log.Infof("run from index %d to index %d", start, end)
+
+	// run test.. i, v := range eufyDevList
+	counter := 0
+	for i := start; i < end; i++ {
+		v := eufyDevList[i]
 		go func() {
 			// str[0] product code, str[1] device key, str[2] password
 			str := strings.Split(v, ",")
@@ -69,7 +85,8 @@ func main() {
 				}
 			}
 		}()
-		log.Infof("Run eufy device: %d", i+1)
+		counter++
+		log.Infof("Run eufy device: %d", counter)
 		// --- debug
 		<-commontool.SubSinal
 	}
