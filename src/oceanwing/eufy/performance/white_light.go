@@ -62,7 +62,7 @@ func (w *whiteLight) inComing() {
 		for {
 			select {
 			case msg := <-w.msgFromServer:
-				go w.handleInComingMsg(msg) // 有必要新开一个 goroutine?
+				w.handleInComingMsg(msg) // 有必要新开一个 goroutine?
 			}
 		}
 	}()
