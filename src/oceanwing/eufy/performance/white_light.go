@@ -17,10 +17,11 @@ import (
 // 这是一个描述白灯的结构体，支持 T1011, T1012
 type whiteLight struct {
 	baseEufy
-	lum       uint32
-	colortemp uint32
-	status    lightT1012.LIGHT_ONOFF_STATUS
-	lumTemp   uint32 //关灯之前，要把当前亮度临时放在在这里,待开灯时再从这里取出
+	lum          uint32
+	colortemp    uint32
+	status       lightT1012.LIGHT_ONOFF_STATUS
+	lumTemp      uint32 //关灯之前，要把当前亮度临时放在在这里,待开灯时再从这里取出
+	timerCounter int
 }
 
 // 创建新的灯的实例
@@ -71,7 +72,16 @@ func (w *whiteLight) inComing() {
 // 实现 Eufydevice 接口
 func (w *whiteLight) SendHeartBeat() {
 	w.msgToServer <- w.buildHeartBeatMsg()
-	// w.MqttClient.PublishMessage(w.buildHeartBeatMsg())
+	w.timerCounter++
+	// 心跳是20秒一次，360次之后就是两小时, 每两小时请求一次时间闹钟离家模式
+	if w.timerCounter == 360 {
+		// 请求时间和闹钟
+		w.msgToServer <- w.devRequestTimeAlertAwayMod(lightT1012.CmdType_DEV_REQUSET_TIME_Alarm)
+		// 请求离家模式
+		w.msgToServer <- w.devRequestTimeAlertAwayMod(lightT1012.CmdType_DEV_REQUEST_AWAYMODE_STATUS)
+		// 重置为0
+		w.timerCounter = 0
+	}
 }
 
 // 构造心跳数据，需要亮度、色温、开关状态这三个值， 构造灯的实例的时候已有初始化，后面会随着订阅到的服务器的控制消息而改变
@@ -106,11 +116,44 @@ func (w *whiteLight) buildHeartBeatMsg() []byte {
 	return data
 }
 
+// 请求服务器同步时间、闹钟、离家模式数据
+func (w *whiteLight) devRequestTimeAlertAwayMod(typ lightT1012.CmdType) []byte {
+	nonePara := &lightT1012.DeviceMessage_NonParaMsg{
+		NonParaMsg: &lightT1012.DeviceMessage_Non_ParamMsg{
+			Type: typ.Enum(),
+		},
+	}
+	devMsg := &lightT1012.DeviceMessage{
+		SessionId:  proto.Int32(-(rand.Int31n(math.MaxInt32))), //  填充负数
+		DevMessage: nonePara,
+	}
+	data, err := proto.Marshal(devMsg)
+	if err != nil {
+		log.Debug("build dev request time alert away mode error")
+		return nil
+	}
+	return data
+}
+
 func (w *whiteLight) handleInComingMsg(payload []byte) {
 	serMsg := &lightT1012.ServerMessage{}
 	err := proto.Unmarshal(payload, serMsg)
 	if err != nil {
 		log.Debugf("unMarshal server message fail: %s", err)
+		return
+	}
+
+	// 如果服务下发了同步时间和闹钟，则回一个ACK
+	sta := serMsg.GetSync_Time_Alarm()
+	if sta != nil {
+		w.msgToServer <- w.devRequestTimeAlertAwayMod(lightT1012.CmdType_DEV_RESPONSE_TIME_Alarm_ACK)
+		return
+	}
+
+	// 如果服务器下发了离家模式的配置数据， 则回一个ACK
+	away := serMsg.GetSetAwayMode_Status()
+	if away != nil {
+		w.msgToServer <- w.devRequestTimeAlertAwayMod(lightT1012.CmdType_DEV_RESPONE_AWAYMODE_ACK)
 		return
 	}
 
