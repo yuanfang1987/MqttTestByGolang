@@ -16,6 +16,7 @@ import (
 
 func main() {
 	defer log.Flush()
+
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	var start, end int
@@ -47,7 +48,7 @@ func main() {
 	}
 
 	// print the test config info..
-	log.Info("================ Start a new eufy device with parameters below... ================")
+	log.Info("================ Start eufy device heart beat performance Testing with parameters below ================")
 	log.Infof("needca: %t", *needca)
 	log.Infof("broker: %s", *broker)
 	log.Infof("use test file: %s", *filePath)
@@ -72,6 +73,13 @@ func main() {
 	for i := start; i < end; i++ {
 		v := eufyDevList[i]
 		go func() {
+			// 万一死掉了，可以恢复过来
+			defer func() {
+				err := recover()
+				if err != nil {
+					log.Errorf("goroutine panic: %s", err)
+				}
+			}()
 			// str[0] product code, str[1] device key, str[2] password
 			str := strings.Split(v, ",")
 			// new a eufy device.
