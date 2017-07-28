@@ -14,7 +14,7 @@ import (
 	lightT1012 "oceanwingqa/common/protobuf.lib/light/t1012"
 )
 
-// Light 灯泡类产品的一个 struct 描述，包括 T1011,T1012,T1013
+// Light 灯泡类产品的一个 struct 描述，包括 T1011,T1012
 type Light struct {
 	baseDevice
 	mode      lightT1012.DeviceMessage_ReportDevBaseInfo_LIGHT_DEV_MODE
@@ -166,8 +166,10 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 
 	// 只有在给设备下发了指令之后，才去判断它的即时心跳， 常规心跳不要管
 	if !light.IsCmdSent {
-		log.Info("尚未有指令下发给设备，无需判断心跳")
-		return
+		if !light.onlyListenMsg {
+			log.Info("尚未有指令下发给设备，无需判断心跳")
+			return
+		}
 	}
 
 	var errMsg []string
@@ -227,7 +229,9 @@ func (light *Light) unMarshalHeartBeatMsg(incomingPayload []byte) {
 		contents = append(contents, "Pass")
 	}
 
-	result.WriteToExcel(contents)
+	if !light.onlyListenMsg {
+		result.WriteToExcel(contents)
+	}
 
 	// 重置
 	light.IsCmdSent = false

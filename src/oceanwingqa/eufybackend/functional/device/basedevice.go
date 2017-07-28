@@ -38,6 +38,9 @@ type EufyDevice interface {
 
 	// 控制离家模式的开始和结束
 	ControlAwayModStatus(int, int, int, int)
+
+	// 是否只仅用于监听消息
+	ListenMsg(bool)
 }
 
 type baseDevice struct {
@@ -55,6 +58,7 @@ type baseDevice struct {
 	RunMod                      int // 0：NORMAL_MODE， 1： AWAY_MODE， 2： STREAMER_MODE
 	testcase                    string
 	notPassAndwaitNextHeartBeat int
+	onlyListenMsg               bool
 }
 
 func (b *baseDevice) GetSubTopic() string {
@@ -113,4 +117,8 @@ func (b *baseDevice) HandleSubscribeMessage() {
 func (b *baseDevice) BuildProtoBufMessage() []byte {
 	fmt.Println("BuildProtoBufMessage() function Not implimented yet.")
 	return nil
+}
+
+func (b *baseDevice) ListenMsg(flag bool) {
+	b.onlyListenMsg = flag
 }

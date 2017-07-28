@@ -305,6 +305,13 @@ func (light *LightWithColor) unMarshalHeartBeatMessage(payload []byte) {
 		return
 	}
 
+	if !light.IsCmdSent {
+		if !light.onlyListenMsg {
+			log.Info("尚未有指令下发给设备，无需判断心跳")
+			return
+		}
+	}
+
 	var errMsg []string
 
 	// CmdType

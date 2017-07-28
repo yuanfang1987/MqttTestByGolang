@@ -28,7 +28,7 @@ func NewMqttServerPoint() *MqttServerPoint {
 }
 
 // SetupRunningDevices 设置需要控制的device数量
-func (s *MqttServerPoint) SetupRunningDevices(keys []string) {
+func (s *MqttServerPoint) SetupRunningDevices(isOnlyListen bool, keys []string) {
 	var dev device.EufyDevice
 	for _, key := range keys {
 		codeAndKey := strings.Split(key, ":")
@@ -43,6 +43,7 @@ func (s *MqttServerPoint) SetupRunningDevices(keys []string) {
 			dev = device.NewRobotCleaner(prod, devkey)
 		}
 		log.Debugf("Create a %s device, Key: %s", prod, devkey)
+		dev.ListenMsg(isOnlyListen)
 		dev.HandleSubscribeMessage()
 		s.devices = append(s.devices, dev)
 	}

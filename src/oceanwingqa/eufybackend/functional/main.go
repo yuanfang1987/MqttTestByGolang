@@ -27,6 +27,7 @@ func main() {
 	needca := config.GetBool(config.MqttNeedCA)
 	codeKeys := config.GetString(config.EufyDeviceCodekeys)
 	interval := config.GetInt(config.EufyDeviceSendCmdInterval)
+	onlyListent := config.GetBool(config.EufyDeviceOnlyListenMsg)
 
 	// 初始化日志实例
 	utils.InitLogInstance(config.GetString(config.LogLevel))
@@ -51,7 +52,7 @@ func main() {
 		// create a new eufyServer instance.
 		eufyServer := serverpoint.NewMqttServerPoint()
 		allDevices := strings.Split(codeKeys, ",")
-		eufyServer.SetupRunningDevices(allDevices)
+		eufyServer.SetupRunningDevices(onlyListent, allDevices)
 		// run mqtt service.
 		eufyServer.RunMqttService(clientIDUserName, clientIDUserName, password, broker, needca)
 		//timer.

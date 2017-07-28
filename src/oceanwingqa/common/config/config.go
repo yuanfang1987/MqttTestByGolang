@@ -23,7 +23,7 @@ const (
 
 	EufyDeviceSendCmdInterval = "eufydevice.send_command_interval"
 	EufyDeviceCodekeys        = "eufydevice.code_key"
-	EufyDeviceRunMode         = "eufydevice.run_mode"
+	EufyDeviceOnlyListenMsg   = "eufydevice.is_only_listen"
 
 	RobotCleanerRunMode           = "robotcleaner.runMode"
 	RobotcleanerHeartBeatInterval = "robotcleaner.heart_beat_interval"
