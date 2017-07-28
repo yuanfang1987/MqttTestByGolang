@@ -54,6 +54,37 @@ func getDataFromDB() {
 	fmt.Printf("second one: %s\n", deviceKyes[1])
 }
 
+func openDB() {
+
+}
+
+//get device key and device id by product code
+func getDevKeyAndDevID(prod string) []map[string]string {
+	db, err = sql.Open("mysql", dbUser+":"+dbPwd+"@tcp("+dbAddr+")/"+dbName)
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(5)
+	err = db.Ping()
+	checkError(err)
+	defer db.Close()
+
+	var uuidStr, keyStr string
+	var resultList []map[string]string
+	rows, _ := db.Query("select uuid,device_key from device where product_code = ?", prod)
+	for rows.Next() {
+		err = rows.Scan(&uuidStr, &keyStr)
+		if err != nil {
+			fmt.Printf("get colmun value error: %s", err)
+			continue
+		}
+		mp := make(map[string]string)
+		mp["uuid"] = uuidStr
+		mp["devkey"] = keyStr
+		resultList = append(resultList, mp)
+	}
+	fmt.Printf("get %d device data\n", len(resultList))
+	return resultList
+}
+
 func checkError(err error) {
 	if err != nil {
 		fmt.Println("Fatal error: ", err)
